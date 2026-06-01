@@ -1,0 +1,448 @@
+{% extends 'admin/base_site.html' %}
+{% load evaluacion_extras %} {% block content %}
+<div id="content" class="flex flex-row flex-1 w-full min-h-screen min-w-0 md:px-8 py-4 bg-slate-50 dark:bg-neutral-900 content-inner">
+    <div class="flex-1 min-w-0">
+        
+        <style>
+            .tabla-evaluacion, 
+            .tabla-evaluacion th, 
+            .tabla-evaluacion td {
+                border: 1px solid var(--color-border, #e2e8f0) !important;
+            }
+            
+            .tabla-evaluacion thead tr {
+                background-color: var(--color-background-neutral, #f8fafc) !important;
+            }
+
+            .tabla-evaluacion tbody tr:nth-child(even) {
+                background-color: var(--color-background-flat, #f1f5f9) !important;
+            }
+            .tabla-evaluacion tbody tr:nth-child(odd) {
+                background-color: var(--color-bg-surface, #ffffff) !important;
+            }
+
+            .tabla-evaluacion tbody tr:hover {
+                background-color: rgba(var(--color-primary-rgb, 9, 100, 70), 0.04) !important;
+            }
+
+            .fila-promedio {
+                background-color: var(--color-background-neutral, #f8fafc) !important;
+            }
+
+            .seccion-generales {
+                color: #096446 !important;
+                font-size: 1.85rem !important;
+                border-bottom: 3px solid var(--color-primary-100, #d1fae5) !important;
+            }
+
+            .seccion-especificas {
+                color: #096446 !important;
+                font-size: 1.85rem !important;
+                border-bottom: 3px solid #e2e8f0 !important;
+            }
+
+            .input-feedback {
+                width: 100%;
+                border-radius: 0.5rem;
+                border: 1px solid var(--color-border, #e2e8f0);
+                background-color: var(--color-background-flat, #f8fafc);
+                padding: 0.75rem;
+                font-size: 0.875rem;
+                color: var(--color-text-main, #1e293b);
+                transition: all 0.2s;
+            }
+            .input-feedback:focus {
+                outline: none;
+                border-color: var(--color-primary-500, #10b981);
+                box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+            }
+
+            .fila-seleccionada {
+                background-color: rgba(var(--color-primary-rgb, 9, 100, 70), 0.06) !important;
+            }
+            .radio-seleccionado {
+                background-color: rgba(var(--color-primary-rgb, 9, 100, 70), 0.15) !important;
+                font-weight: bold;
+            }
+        </style>
+
+        <div class="max-w-6xl mx-auto px-4 space-y-8">
+
+            <div class="mb-8 border-b border-border pb-5">
+                <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    {{ evaluacion.descripcion|default:"Evaluación de Desempeño" }}
+                </h1>
+                <p class="text-sm text-slate-400 mt-2">
+                    Período Activo: <span class="font-semibold text-slate-700 dark:text-slate-300">{{ evaluacion.periodo }}</span>
+                </p>
+            </div>
+
+            {% if messages %}
+                <div class="mb-8 bg-surface border border-border rounded-xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-green-50 dark:bg-green-950/40 rounded-lg text-green-600 dark:text-green-400">
+                            <span class="material-symbols-outlined text-2xl">check_circle</span>
+                        </div>
+                        <div>
+                            {% for message in messages %}
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                    {{ message }}
+                                </p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <a href="{% url 'admin:index' %}" 
+                       class="inline-flex items-center gap-2 font-medium py-2 px-4 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 text-slate-700 dark:text-slate-300 text-sm transition-colors shadow-sm cursor-pointer">
+                        <span class="material-symbols-outlined text-lg">home</span>
+                        Ir al inicio
+                    </a>
+                </div>
+            {% endif %}
+
+            {% if not messages %}
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2 space-y-12">
+                    
+                    <div class="bg-surface border border-border p-6 rounded-xl shadow-sm mb-6">
+                        <div class="flex items-center gap-4 bg-green-50/70 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-4 rounded-xl w-full">
+                            <div class="p-3 bg-white dark:bg-neutral-900 rounded-xl border border-border shadow-sm">
+                                <span class="material-symbols-outlined text-slate-500 text-2xl">badge</span>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider block">
+                                    {% if es_autoevaluacion %}Estas respondiendo tu Autoevaluación{% else %}Evaluando Colaborador{% endif %}
+                                </span>
+                                <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ empleado.nombre_largo }}</h2>
+                                <p class="text-sm text-slate-500">{{ empleado.id_puesto.descripcion|default:"Puesto no asignado" }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if error_mensaje %}
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center dark:bg-blue-900/20 dark:border-blue-900">
+                            <p class="text-sm text-blue-800 dark:text-blue-400 font-medium">{{ error_mensaje }}</p>
+                        </div>
+                    {% endif %}
+
+                    {% if clasificaciones_generales or clasificaciones_especificas %}
+                        <form action="{% url 'guardar_evaluacion' %}" method="POST" class="space-y-16">
+                            {% csrf_token %}
+                            <input type="hidden" name="evaluado_id" value="{{ empleado.id_empleado }}">
+                            <input type="hidden" name="tipo_evaluador" value="{{ es_autoevaluacion|yesno:'E,J' }}">
+
+                            {% if clasificaciones_generales %}
+                                <div id="contenedor-generales" class="space-y-8">
+                                    <h2 class="font-black tracking-tight flex items-center gap-3 pb-3 seccion-generales">
+                                        <span class="material-symbols-outlined text-4xl">stars</span>
+                                        Competencias Generales
+                                    </h2>
+                                    
+                                    {% for item in clasificaciones_generales %}
+                                        <div class="bg-surface border border-border rounded-xl shadow-sm overflow-hidden clasificacion-box mb-8" data-id="{{ item.clasificacion.id_clasificacion }}">
+                                            <div class="w-full max-w-full overflow-hidden block">
+                                                <div class="overflow-x-auto max-w-full block">
+                                                    <table class="w-full text-left border-collapse table-fixed tabla-evaluacion">
+                                                        <thead>
+                                                            <tr class="border-b border-border text-center">
+                                                                <th class="p-4 text-sm font-bold text-slate-900 dark:text-slate-100 text-left w-3/5 align-middle">
+                                                                    {{ item.clasificacion.descripcion }}
+                                                                </th>
+                                                                <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">1</th>
+                                                                <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">2</th>
+                                                                <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">3</th>
+                                                                <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">4</th>
+                                                                <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">5</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="text-slate-700 dark:text-slate-300">
+                                                            {% for competencia in item.competencia_list %}
+                                                                <tr class="fila-pregunta-evaluable">
+                                                                    <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 align-middle">
+                                                                        {{ competencia.descripcion }}
+                                                                    </td>
+                                                                    {% for i in "12345" %}
+                                                                        <td class="p-0 text-center align-middle transition-colors duration-150">
+                                                                            <label class="w-full h-full flex items-center justify-center cursor-pointer py-3 px-2">
+                                                                                <input type="radio" name="nota_{{ competencia.id_competencia }}" value="{{ i }}" 
+                                                                                       {% if notas_guardadas|get_item:competencia.id_competencia == i|add:0 %}checked{% endif %}
+                                                                                       {% if evaluacion_cerrada %}disabled{% endif %}
+                                                                                       class="w-4 h-4 text-primary-600 border-border bg-background focus:ring-primary-500 auto-calc-radio">
+                                                                            </label>
+                                                                        </td>
+                                                                    {% endfor %}
+                                                                </tr>
+                                                            {% endfor %}
+                                                            <tr class="fila-promedio font-semibold text-slate-700 dark:text-slate-300">
+                                                                <td class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider">Promedio Tabla</td>
+                                                                <td colspan="5" class="p-3 text-center align-middle border-l border-border font-black text-slate-900 dark:text-white text-sm bg-slate-50/50 dark:bg-neutral-900/40">
+                                                                    <span class="promedio-display">0.0</span>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>                                                
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+
+                                    <div class="bg-slate-50 dark:bg-neutral-900 border border-dashed border-border rounded-xl p-4 flex justify-between items-center mt-6 shadow-inner">
+                                        <span class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-green-600">analytics</span>
+                                            Promedio Total Competencias Generales
+                                        </span>
+                                        <span id="gran-promedio-generales" class="text-2xl font-black text-slate-900 dark:text-white bg-white dark:bg-black px-4 py-1 rounded-lg border border-border shadow-sm">
+                                            0.0
+                                        </span>
+                                    </div>
+
+                                    <div class="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-4">
+                                        <h3 class="font-bold tracking-tight flex items-center gap-2 pb-2 text-slate-800 dark:text-slate-200 border-b border-border">
+                                            <span class="material-symbols-outlined text-primary-600">forum</span>
+                                            Fortalezas y Áreas de Oportunidad (Generales)
+                                        </h3>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Fortalezas</label>
+                                                <textarea name="fortalezas_generales" rows="3" class="input-feedback" placeholder="Escriba las fortalezas detectadas..." {% if evaluacion_cerrada %}disabled{% endif %}>{{ comentario_g.fortalezas|default:"" }}</textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Áreas de Oportunidad</label>
+                                                <textarea name="oportunidades_generales" rows="3" class="input-feedback" placeholder="Escriba las áreas de mejora..." {% if evaluacion_cerrada %}disabled{% endif %}>{{ comentario_g.areas_oportunidad|default:"" }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if clasificaciones_especificas %}
+                                <div id="contenedor-especificas" class="space-y-8 pt-6">
+                                    <h2 class="font-black tracking-tight flex items-center gap-3 pb-3 seccion-especificas">
+                                        <span class="material-symbols-outlined text-4xl">engineering</span>
+                                        Competencias Específicas
+                                    </h2>
+
+                                    {% for item in clasificaciones_especificas %}
+                                        <div class="bg-surface border border-border rounded-xl shadow-sm overflow-hidden clasificacion-box mb-8" data-id="{{ item.clasificacion.id_clasificacion }}">
+                                            <div class="overflow-x-auto">
+                                                <table class="w-full text-left border-collapse table-fixed tabla-evaluacion">
+                                                    <thead>
+                                                        <tr class="border-b border-border text-center">
+                                                            <th class="p-4 text-sm font-bold text-slate-900 dark:text-slate-100 text-left w-3/5 align-middle">
+                                                                {{ item.clasificacion.descripcion }}
+                                                            </th>
+                                                            <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">1</th>
+                                                            <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">2</th>
+                                                            <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">3</th>
+                                                            <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">4</th>
+                                                            <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">5</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="text-slate-700 dark:text-slate-300">
+                                                        {% for competencia in item.competencia_list %}
+                                                            <tr class="fila-pregunta-evaluable">
+                                                                <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 align-middle">
+                                                                    {{ competencia.descripcion }}
+                                                                </td>
+                                                                {% for i in "12345" %}
+                                                                    <td class="p-0 text-center align-middle transition-colors duration-150">
+                                                                        <label class="w-full h-full flex items-center justify-center cursor-pointer py-3 px-2">
+                                                                            <input type="radio" name="nota_{{ competencia.id_competencia }}" value="{{ i }}" 
+                                                                                   {% if notas_guardadas|get_item:competencia.id_competencia == i|add:0 %}checked{% endif %}
+                                                                                   {% if evaluacion_cerrada %}disabled{% endif %}
+                                                                                   class="w-4 h-4 text-primary-600 border-border bg-background focus:ring-primary-500 auto-calc-radio">
+                                                                        </label>
+                                                                    </td>
+                                                                {% endfor %}
+                                                            </tr>
+                                                        {% endfor %}
+                                                        <tr class="fila-promedio font-semibold text-slate-700 dark:text-slate-300">
+                                                            <td class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider">Promedio Tabla</td>
+                                                            <td colspan="5" class="p-3 text-center align-middle border-l border-border font-black text-slate-900 dark:text-white text-sm bg-slate-50/50 dark:bg-neutral-900/40">
+                                                                <span class="promedio-display">0.0</span>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+
+                                    <div class="bg-slate-50 dark:bg-neutral-900 border border-dashed border-border rounded-xl p-4 flex justify-between items-center shadow-inner">
+                                        <span class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-green-600">analytics</span>
+                                            Promedio Total Competencias Específicas
+                                        </span>
+                                        <span id="gran-promedio-especificas" class="text-2xl font-black text-slate-900 dark:text-white bg-white dark:bg-black px-4 py-1 rounded-lg border border-border shadow-sm">
+                                            0.0
+                                        </span>
+                                    </div>
+
+                                    <div class="bg-surface border border-border rounded-xl p-6 shadow-sm space-y-4">
+                                        <h3 class="font-bold tracking-tight flex items-center gap-2 pb-2 text-slate-800 dark:text-slate-200 border-b border-border">
+                                            <span class="material-symbols-outlined text-primary-600">forum</span>
+                                            Fortalezas y Áreas de Oportunidad (Específicas)
+                                        </h3>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Fortalezas</label>
+                                                <textarea name="fortalezas_especificas" rows="3" class="input-feedback" placeholder="Escriba las fortalezas detectadas..." {% if evaluacion_cerrada %}disabled{% endif %}>{{ comentario_e.fortalezas|default:"" }}</textarea>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Áreas de Oportunidad</label>
+                                                <textarea name="oportunidades_especificas" rows="3" class="input-feedback" placeholder="Escriba las áreas de mejora..." {% if evaluacion_cerrada %}disabled{% endif %}>{{ comentario_e.areas_oportunidad|default:"" }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <div class="flex justify-end pt-6 pb-12">
+                                <button type="submit" 
+                                        onclick="if(this.form.checkValidity()) { this.disabled = true; this.innerText = 'Guardando...'; this.form.submit(); }"
+                                        style="background-color: #059669 !important; color: #ffffff !important; opacity: 1 !important; display: inline-flex !important;"
+                                        class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base">
+                                    <span class="material-symbols-outlined text-xl" style="color: #ffffff !important;">save</span>
+                                    Guardar Evaluación Completa
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center dark:bg-amber-900/20 dark:border-amber-900">
+                            <span class="material-symbols-outlined text-amber-500 text-4xl mb-2">warning</span>
+                            <p class="text-sm text-amber-800 dark:text-amber-400 font-bold">No se encontraron competencias válidas para evaluar en este perfil.</p>
+                        </div>
+                    {% endif %}
+
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-surface border border-border p-6 rounded-xl shadow-sm sticky top-4">
+                        <h3 class="font-bold text-slate-900 dark:text-white tracking-tight mb-4 flex items-center gap-2 pb-2 border-b border-border">
+                            <span class="material-symbols-outlined text-slate-500">groups</span>
+                            Equipo a Cargo
+                        </h3>
+                        {% if subordinados %}
+                            <div class="space-y-3">
+                                {% for sub in subordinados %}
+                                    <a href="{% url 'panel_evaluacion' sub.empleado.id_empleado %}" 
+                                       class="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors group">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-primary-600">
+                                                {{ sub.empleado.nombre_largo }}
+                                            </p>
+                                            <p class="text-xs text-slate-400 truncate">
+                                                {{ sub.empleado.id_puesto.descripcion|default:"Puesto no asignado" }}
+                                            </p>
+                                        </div>
+                                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ml-2 shrink-0
+                                            {% if sub.estatus == 'Contestado' %}
+                                                bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400
+                                            {% else %}
+                                                bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400
+                                            {% endif %}">
+                                            {{ sub.estatus }}
+                                        </span>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-xs text-slate-400 text-center py-4">No tienes personal subordinado directo asignado.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const boxes = document.querySelectorAll(".clasificacion-box");
+
+        function actualizarGranPromedio(contenedorId, granPromedioId) {
+            const contenedor = document.getElementById(contenedorId);
+            if (!contenedor) return;
+            
+            const displays = contenedor.querySelectorAll(".promedio-display");
+            let suma = 0;
+            let conteo = 0;
+
+            displays.forEach(disp => {
+                const val = parseFloat(disp.innerText);
+                if (val > 0) {
+                    suma += val;
+                    conteo++;
+                }
+            });
+
+            const granPromedioDisplay = document.getElementById(granPromedioId);
+            if (granPromedioDisplay) {
+                granPromedioDisplay.innerText = conteo > 0 ? (suma / conteo).toFixed(1) : "0.0";
+            }
+        }
+
+        boxes.forEach(box => {
+            const radios = box.querySelectorAll(".auto-calc-radio");
+            
+            function calcularPromedioIndividual() {
+                const filas = box.querySelectorAll(".fila-pregunta-evaluable");
+                let sumaTotal = 0;
+                let preguntasRespondidas = 0;
+
+                filas.forEach(fila => {
+                    const seleccionado = fila.querySelector(".auto-calc-radio:checked");
+                    if (seleccionado) {
+                        sumaTotal += parseInt(seleccionado.value);
+                        preguntasRespondidas++;
+                    }
+                });
+
+                const promedioDisplay = box.querySelector(".promedio-display");
+                if (promedioDisplay) {
+                    promedioDisplay.innerText = preguntasRespondidas > 0 ? (sumaTotal / preguntasRespondidas).toFixed(1) : "0.0";
+                }
+
+                actualizarGranPromedio("contenedor-generales", "gran-promedio-generales");
+                actualizarGranPromedio("contenedor-especificas", "gran-promedio-especificas");
+            }
+
+            radios.forEach(radio => {
+                radio.addEventListener("change", function() {
+                    calcularPromedioIndividual();
+
+                    const filaActual = radio.closest("tr");
+                    const celdaActual = radio.closest("td");
+
+                    filaActual.querySelectorAll("td").forEach(td => {
+                        td.classList.remove("radio-seleccionado");
+                    });
+
+                    filaActual.classList.add("fila-seleccionada");
+                    if (celdaActual) {
+                        celdaActual.classList.add("radio-seleccionado");
+                    }
+                });
+            });
+
+            function inicializarTabla() {
+                const checkedRadiosIniciales = box.querySelectorAll(".auto-calc-radio:checked");
+                if(checkedRadiosIniciales.length > 0) {
+                    calcularPromedioIndividual();
+                    checkedRadiosIniciales.forEach(radio => {
+                        const filaActual = radio.closest("tr");
+                        const celdaActual = radio.closest("td");
+                        if (filaActual) filaActual.classList.add("fila-seleccionada");
+                        if (celdaActual) celdaActual.classList.add("radio-seleccionado");
+                    });
+                }
+            }
+            inicializarTabla();
+        });
+    });
+</script>
+{% endblock %}

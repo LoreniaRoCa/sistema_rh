@@ -1,0 +1,21 @@
+{% extends "admin/index.html" %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        /* 1. Oculta el contenedor de Actividad Reciente en el Dashboard de Jazzmin */
+        .col-lg-3.col-12, 
+        #content-wrapper .card:has(.fa-history),
+        .col-md-3.col-sm-12 {
+            display: none !important;
+        }
+
+        /* 2. Hace que el contenedor de tus Apps/Tablas ocupe las 12 columnas (100% del ancho) */
+        .col-lg-9.col-12,
+        .col-md-9.col-sm-12 {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 0 0 100% !important;
+        }
+    </style>
+{% endblock %}

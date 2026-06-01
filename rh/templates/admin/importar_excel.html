@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div style="padding: 20px; background: white; border-radius: 4px;">
+    <p>Asegúrate de que tu archivo de Excel (.xlsx) tenga los nombres de los puestos en la <strong>primera columna (Columna A)</strong> a partir de la fila 2.</p>
+    <form action="" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            {{ form.as_p }}
+        </div>
+        <input type="submit" value="Iniciar Carga" class="default" style="background-color: #007bff; color: white; padding: 10px 20px; border: none; cursor: pointer;">
+        <a href="../" style="margin-left: 15px; color: #666;">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

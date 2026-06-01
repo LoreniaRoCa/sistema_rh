@@ -1,0 +1,35 @@
+{% extends "admin/botones_inferiores.html" %} {% block extrahead %}
+{{ block.super }}
+<style>
+    /* Estira las celdas para las descripciones de competencias */
+    .inline-related table th.column-descripcion,
+    .inline-related table td.field-descripcion {
+        width: 85% !important;
+    }
+
+    /* Estilo para el título personalizado */
+    .titulo-personalizado-competencias {
+        display: block !important;
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        color: #1f2d3d !important;
+        margin-top: 25px !important;
+        margin-bottom: 12px !important;
+        padding-bottom: 6px !important;
+        border-bottom: 2px solid #007bff !important;
+    }
+</style>
+
+<script>
+    // Inyecta el título "Competencias" arriba del detalle inline
+    document.addEventListener("DOMContentLoaded", function() {
+        var inlineGroup = document.querySelector(".inline-group");
+        if (inlineGroup) {
+            var nuevoTitulo = document.createElement("h2");
+            nuevoTitulo.className = "titulo-personalizado-competencias";
+            nuevoTitulo.innerText = "Competencias";
+            inlineGroup.parentNode.insertBefore(nuevoTitulo, inlineGroup);
+        }
+    });
+</script>
+{% endblock %}

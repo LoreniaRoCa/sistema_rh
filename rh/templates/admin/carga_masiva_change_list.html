@@ -1,0 +1,35 @@
+{% extends "admin/change_list.html" %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        /* 1. Escondemos por completo el recuadro de actividades recientes */
+        .col-md-3.col-sm-12 {
+            display: none !important;
+        }
+        
+        /* 2. Obligamos al panel de tus tablas a estirarse al 100% del ancho */
+        .col-md-9.col-sm-12 {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: 0 0 100% !important;
+        }
+    </style>
+{% endblock %}
+
+{% block object-tools-items %}
+    <li>
+       <a href="{% url 'descargar_plantilla' cl.opts.model_name %}" 
+        class="inline-flex items-center gap-2 font-medium py-2 px-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 text-slate-700 dark:text-slate-300 text-sm transition-colors shadow-sm cursor-pointer mr-2">
+        <span class="material-symbols-outlined text-lg text-emerald-600">download_for_offline</span>
+        Descargar plantilla Excel
+    </a>
+
+    <a href="/admin/{{ cl.opts.app_label }}/{{ cl.opts.model_name }}/importar-excel/"
+        class="inline-flex items-center gap-2 font-medium py-2 px-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 text-slate-700 dark:text-slate-300 text-sm transition-colors shadow-sm cursor-pointer mr-2">
+        <span class="material-symbols-outlined text-lg text-emerald-600">upload_file</span>
+        Carga Masiva (Excel)
+    </a>
+    </li>
+    {{ block.super }}
+{% endblock %}
