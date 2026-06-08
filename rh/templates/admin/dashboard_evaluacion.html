@@ -1,0 +1,139 @@
+{% extends "unfold/layouts/base_simple.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="p-6 lg:p-8 space-y-8">
+    
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-emerald-600">monitoring</span>
+                Monitoreo de Evaluación de Desempeño 2026
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-neutral-400 mt-1">
+                Progreso en tiempo real basado en empleados con competencias asignadas.
+            </p>
+        </div>
+        
+        <a href="{% url 'exportar_resumen_excel' %}" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm text-sm transition-colors">
+            <span class="material-symbols-outlined text-lg">download</span>
+            Descargar Reporte Consolidado (Excel)
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 p-6 shadow-sm">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Plantilla a Evaluar</p>
+                    <h3 class="text-3xl font-bold text-slate-900 dark:text-white mt-1">{{ global_kpis.total_empleados }}</h3>
+                </div>
+                <div class="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg">
+                    <span class="material-symbols-outlined">groups</span>
+                </div>
+            </div>
+            <p class="text-xs text-slate-400 mt-4">Personal único con competencias asignadas</p>
+        </div>
+
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 p-6 shadow-sm">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avance Autoevaluaciones</p>
+                    <h3 class="text-3xl font-bold text-slate-900 dark:text-white mt-1">
+                        {{ global_kpis.auto_contestadas }} <span class="text-lg font-medium text-slate-400">/ {{ global_kpis.total_empleados }}</span>
+                    </h3>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400">
+                        {{ global_kpis.auto_porcentaje }}%
+                    </span>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-neutral-800 h-2 rounded-full mt-5 overflow-hidden">
+                <div class="bg-emerald-500 h-2 rounded-full transition-all" style="width: {{ global_kpis.auto_porcentaje }}%"></div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 p-6 shadow-sm">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avance Evaluaciones Jefes</p>
+                    <h3 class="text-3xl font-bold text-slate-900 dark:text-white mt-1">
+                        {{ global_kpis.jefe_contestadas }} <span class="text-lg font-medium text-slate-400">/ {{ global_kpis.total_empleados }}</span>
+                    </h3>
+                </div>
+                <div class="text-right">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400">
+                        {{ global_kpis.jefe_porcentaje }}%
+                    </span>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-neutral-800 h-2 rounded-full mt-5 overflow-hidden">
+                <div class="bg-indigo-500 h-2 rounded-full transition-all" style="width: {{ global_kpis.jefe_porcentaje }}%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">Desglose por Departamento y Liderazgo</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-neutral-800 text-xs font-semibold uppercase bg-slate-50 dark:bg-neutral-900 text-slate-500 dark:text-neutral-400 tracking-wider">
+                        <th class="p-4 pl-6">Departamento</th>
+                        <th class="p-4">Jefe Inmediato</th>
+                        <th class="p-4 text-center">Colaboradores</th>
+                        <th class="p-4 text-center bg-slate-50/30 dark:bg-neutral-900/30">Auto (Contestadas)</th>
+                        <th class="p-4 text-center bg-slate-50/30 dark:bg-neutral-900/30">Auto (%)</th>
+                        <th class="p-4 text-center bg-indigo-50/20 dark:bg-indigo-950/10">Jefe (Evaluados)</th>
+                        <th class="p-4 text-center bg-indigo-50/20 dark:bg-indigo-950/10">Jefe (%)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-neutral-800 text-sm text-slate-700 dark:text-neutral-300">
+                    {% for dep in departamentos %}
+                    <tr class="hover:bg-slate-50/80 dark:hover:bg-neutral-800/40 transition-colors">
+                        <td class="p-4 pl-6 font-semibold text-slate-900 dark:text-white">{{ dep.nombre }}</td>
+                        <td class="p-4">
+                            {% if dep.jefe == "SIN ASIGNAR" %}
+                                <span class="text-slate-400 italic text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-neutral-800">Sin Líder asignado</span>
+                            {% else %}
+                                <span class="font-medium text-slate-700 dark:text-neutral-300">{{ dep.jefe }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-center font-bold text-slate-800 dark:text-neutral-200">{{ dep.total_empleados }}</td>
+                        
+                        <td class="p-4 text-center bg-slate-50/30 dark:bg-neutral-900/30">
+                            <span class="font-medium text-slate-900 dark:text-white">{{ dep.auto_contestadas }}</span>
+                            <span class="text-xs text-slate-400"> / {{ dep.total_empleados }}</span>
+                        </td>
+                        <td class="p-4 text-center bg-slate-50/30 dark:bg-neutral-900/30">
+                            <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded {% if dep.auto_pct == 100 %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400{% elif dep.auto_pct > 0 %}bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-400{% else %}bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400{% endif %}">
+                                {{ dep.auto_pct }}%
+                            </span>
+                        </td>
+
+                        <td class="p-4 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
+                            <span class="font-medium text-slate-900 dark:text-white">{{ dep.jefe_contestadas }}</span>
+                            <span class="text-xs text-slate-400"> / {{ dep.total_empleados }}</span>
+                        </td>
+                        <td class="p-4 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
+                            <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded {% if dep.jefe_pct == 100 %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-400{% elif dep.jefe_pct > 0 %}bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-400{% else %}bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400{% endif %}">
+                                {{ dep.jefe_pct }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-400 dark:text-neutral-500 italic">
+                            No se encontraron datos en la vista_dashboard_departamentos.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6,8 +6,10 @@ from django.contrib import messages
 from django import forms
 import openpyxl
 from unfold.admin import ModelAdmin, TabularInline  
+from unfold.sites import UnfoldAdminSite  # ⬅️ ¡ESTA ES LA LÍNEA MÁGICA QUE FALTA!
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.db import connection
 
 # Importación explícita de todos los modelos requeridos
 from .models import (
@@ -15,6 +17,100 @@ from .models import (
     Competencia, Evaluacion, EvaluacionDet, ClasificacionPorPuesto, 
     ClasificacionPorEmpleado, EmpleadoCompetenciaAsignada
 )
+
+class CustomAdminSite(UnfoldAdminSite):
+    # Le decimos a Unfold qué plantilla usar para la página principal
+    index_template = "admin/index.html"
+
+    def index(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        
+        if not request.user.is_superuser:
+            return redirect('/admin/panel-evaluacion/')
+
+        # Diccionario intermedio para agrupar las filas por nombre de departamento
+        departamentos_agrupados = {}
+        
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    departamento, 
+                    jefe, 
+                    numempleados, 
+                    autoevaluados, 
+                    evaluados 
+                FROM vista_dashboard_departamentos
+                ORDER BY departamento ASC, jefe ASC
+            """)
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                nom_depto = row[0]
+                jefe_name = row[1]
+                num_empleados = int(row[2] or 0)
+                auto_contestadas = int(row[3] or 0)
+                jefe_contestadas = int(row[4] or 0)
+                
+                auto_pendientes = max(0, num_empleados - auto_contestadas)
+                jefe_pendientes = max(0, num_empleados - jefe_contestadas)
+                
+                auto_pct = round((auto_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
+                jefe_pct = round((jefe_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
+                
+                # Modificamos las llaves para acoplarnos idéntico a los campos de tu index.html
+                subgrupo_jefe = {
+                    'jefe': jefe_name,
+                    'total_empleados': num_empleados,
+                    'auto_contestadas': auto_contestadas,
+                    'auto_por_contestar': auto_pendientes,
+                    'auto_pct': auto_pct,
+                    'jefe_contestadas': jefe_contestadas,
+                    'jefe_por_contestar': jefe_pendientes,
+                    'jefe_pct': jefe_pct,
+                }
+                
+                if nom_depto not in departamentos_agrupados:
+                    departamentos_agrupados[nom_depto] = {
+                        'nombre': nom_depto,
+                        'total_empleados_depto': 0,
+                        'jefes_lista': []  # 🌟 FIJADO: Coincide con 'depto.jefes_lista' del HTML
+                    }
+                
+                departamentos_agrupados[nom_depto]['jefes_lista'].append(subgrupo_jefe)
+                departamentos_agrupados[nom_depto]['total_empleados_depto'] += num_empleados
+
+        # Convertir el diccionario intermedio a la lista ordenada para el HTML
+        departamentos_lista = list(departamentos_agrupados.values())
+
+        # --- CÁLCULO DE KPIs GLOBALES (Sumatorias reales sobre la lista estructurada) ---
+        total_global_empleados = 0
+        total_auto_global = 0
+        total_jefe_global = 0
+        
+        for depto in departamentos_lista:
+            for j in depto['jefes_lista']:
+                total_global_empleados += j['total_empleados']
+                total_auto_global += j['auto_contestadas']
+                total_jefe_global += j['jefe_contestadas']
+
+        global_kpis = {
+            'total_empleados': total_global_empleados,
+            'auto_contestadas': total_auto_global,
+            'auto_porcentaje': round((total_auto_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
+            'jefe_contestadas': total_jefe_global,
+            'jefe_porcentaje': round((total_jefe_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
+        }
+
+        # Vinculación perfecta con los nombres del contexto de tu index.html
+        extra_context.update({
+            'global_kpis': global_kpis,
+            'departamentos_dashboard': departamentos_lista,  # 🌟 CAMBIADO AQUÍ PARA RECONCILIAR CON EL HTML
+        })
+
+        return super().index(request, extra_context=extra_context)
+
+# Instanciación del sitio personalizado
+admin_site = CustomAdminSite(name='custom_admin')
 
 class CatalogosOrdenadosAdmin(admin.ModelAdmin):
     """
@@ -79,23 +175,43 @@ class ExcelImportAdmin(ModelAdmin):
         )
     acciones_rh.short_description = "Acciones"
 
+    # def get_urls(self):
+    #     urls = super().get_urls()
+    #     custom_urls = [
+    #         path('import-excel/', self.admin_site.admin_view(self.import_excel_view), name=f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_import_excel' if self.model_class else 'import_excel'),
+    #     ]
+    #     return custom_urls + urls
     def get_urls(self):
         urls = super().get_urls()
+        if not self.model:
+            return urls
+
+        app_label = self.model._meta.app_label
+        model_name = self.model._meta.model_name
+
         custom_urls = [
-            path('import-excel/', self.admin_site.admin_view(self.import_excel_view), name=f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_import_excel' if self.model_class else 'import_excel'),
+            # Cambiamos 'importar-excel-catalogo/' por 'importar-excel/'
+            path(
+                'importar-excel/', 
+                self.admin_site.admin_view(self.import_excel_view), 
+                name=f'{app_label}_{model_name}_import_excel'
+            ),
         ]
+        # Ponemos las custom_urls AL INICIO para que Django las evalúe antes que el ID del objeto
         return custom_urls + urls
 
     def import_excel_view(self, request):
         if request.method == "POST":
+            # Recibimos el archivo directo desde el input del listado
             excel_file = request.FILES.get("excel_file")
+            
             if not excel_file:
-                messages.error(request, "Por favor, selecciona un archivo.")
-                return redirect(request.path)
+                messages.error(request, "Por favor, selecciona un archivo válido.")
+                return redirect(f"/admin/{self.model_class._meta.app_label}/{self.model_class._meta.model_name}/")
 
             if not excel_file.name.endswith(('.xlsx', '.xls')):
                 messages.error(request, "El archivo debe ser un Excel (.xlsx o .xls).")
-                return redirect(request.path)
+                return redirect(f"/admin/{self.model_class._meta.app_label}/{self.model_class._meta.model_name}/")
 
             try:
                 wb = openpyxl.load_workbook(excel_file, data_only=True)
@@ -117,6 +233,7 @@ class ExcelImportAdmin(ModelAdmin):
 
                     if pk_value:
                         try:
+                            # CASO 1: El registro YA EXISTE en la base de datos -> Actualizamos datos
                             instance = self.model_class.objects.get(**{self.pk_field_name: pk_value})
                             for key, value in data.items():
                                 setattr(instance, key, value)
@@ -124,32 +241,38 @@ class ExcelImportAdmin(ModelAdmin):
                             success_count += 1
                         except self.model_class.DoesNotExist:
                             try:
-                                self.model_class.objects.create(**data)
+                                # CASO 2: El ID no existe -> FORZAMOS la creación respetando el ID del Excel
+                                nuevo_registro = self.model_class()
+                                # Le inyectamos manualmente la llave primaria antes que nada
+                                setattr(nuevo_registro, self.pk_field_name, pk_value)
+                                
+                                # Le asignamos el resto de las columnas del excel
+                                for key, value in data.items():
+                                    if key != self.pk_field_name:
+                                        setattr(nuevo_registro, key, value)
+                                
+                                # Guardamos de forma explícita en la base de datos
+                                nuevo_registro.save()
                                 success_count += 1
                             except Exception as e:
                                 error_count += 1
-                                messages.warning(request, f"Error en fila {row_idx}: {e}")
+                                messages.warning(request, f"Error en fila {row_idx} al forzar ID: {e}")
                     else:
+                        # CASO 3: Si por alguna razón el Excel no traía ID, dejamos que la DB genere el consecutivo
                         try:
                             self.model_class.objects.create(**data)
                             success_count += 1
                         except Exception as e:
                             error_count += 1
-                            messages.warning(request, f"Error en fila {row_idx}: {e}")
+                            messages.warning(request, f"Error en fila {row_idx} (Sin ID): {e}")
 
                 messages.success(request, f"Importación completada. Registros procesados: {success_count}. Errores: {error_count}")
-                return redirect(f"admin:{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_changelist")
-
+                
             except Exception as e:
                 messages.error(request, f"Error crítico al procesar el archivo: {e}")
-                return redirect(request.path)
-
-        context = {
-            **self.admin_site.each_context(request),
-            "title": f"Importar {self.model_class._meta.verbose_name_plural if self.model_class else ''} desde Excel",
-            "opts": self.model_class._meta if self.model_class else None,
-        }
-        return render(request, self.import_template, context)
+                
+        # Al terminar, o si es un GET accidental, redirige de inmediato a la tabla del catálogo
+        return redirect(f"/admin/{self.model_class._meta.app_label}/{self.model_class._meta.model_name}/")
 
 
 # ==========================================
@@ -356,7 +479,7 @@ class EmpleadoAdminForm(forms.ModelForm):
 class PuestoAdmin(ExcelImportAdmin):
     model_class = Puesto
     pk_field_name = 'id_puesto'
-    excel_columns = ['descripcion']
+    excel_columns = ['id_puesto', 'descripcion']
     list_display = ('id_puesto', 'descripcion', 'acciones_rh')
     search_fields = ('descripcion',)
     inlines = [ClasificacionPorPuestoInline]
@@ -367,7 +490,7 @@ admin.site.register(Puesto, PuestoAdmin)
 class DepartamentoAdmin(ExcelImportAdmin):
     model_class = Departamento
     pk_field_name = 'id_departamento'
-    excel_columns = ['descripcion']
+    excel_columns = ['id_departamento', 'descripcion']
     list_display = ('id_departamento', 'descripcion', 'acciones_rh')
     search_fields = ('descripcion',)
 
@@ -377,7 +500,7 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     form = EmpleadoAdminForm  
     model_class = Empleado
     pk_field_name = 'id_empleado'
-    excel_columns = ['nombre_largo', 'id_puesto_id', 'id_departamento_id', 'id_jefe_id', 'es_jefe_departamento', 'estado_empleado']
+    excel_columns = ['id_empleado', 'nombre_largo', 'id_puesto_id', 'id_departamento_id', 'id_jefe_id', 'es_jefe_departamento', 'estado_empleado']
     list_display = ('id_empleado', 'nombre_largo', 'id_puesto', 'id_departamento', 'es_jefe_departamento', 'estado_empleado', 'acciones_rh')
     list_filter = ('id_departamento', 'id_puesto', 'es_jefe_departamento', 'estado_empleado')
     search_fields = ('nombre_largo', 'id_puesto__descripcion')

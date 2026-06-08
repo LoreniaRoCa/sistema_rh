@@ -505,3 +505,63 @@ def exportar_resumen_excel(request):
     
     wb.save(response)
     return response
+
+# def dashboard_evaluaciones(request):
+#     departamentos_data = []
+    
+#     # Ejecutamos tu nueva vista de Supabase
+#     with connection.cursor() as cursor:
+#         cursor.execute("""
+#             SELECT 
+#                 departamento, 
+#                 jefe, 
+#                 numempleados, 
+#                 autoevaluados, 
+#                 evaluados 
+#             FROM vista_dashboard_departamentos
+#         """)
+#         rows = cursor.fetchall()
+        
+#         for row in rows:
+#             num_empleados = int(row[2])
+#             auto_contestadas = int(row[3])
+#             jefe_contestadas = int(row[4])
+            
+#             # Cálculo de pendientes
+#             auto_pendientes = num_empleados - auto_contestadas
+#             jefe_pendientes = num_empleados - jefe_contestadas
+            
+#             # Cálculo de porcentajes para las barras de progreso
+#             auto_pct = round((auto_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
+#             jefe_pct = round((jefe_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
+            
+#             departamentos_data.append({
+#                 'nombre': row[0],
+#                 'jefe': row[1],
+#                 'total_empleados': num_empleados,
+#                 'auto_contestadas': auto_contestadas,
+#                 'auto_por_contestar': auto_pendientes,
+#                 'auto_pct': auto_pct,
+#                 'jefe_contestadas': jefe_contestadas,
+#                 'jefe_por_contestar': jefe_pendientes,
+#                 'jefe_pct': jefe_pct,
+#             })
+
+#     # --- CÁLCULO DE KPIs GLOBALES (Sumatorias de todas las filas) ---
+#     total_global_empleados = sum(d['total_empleados'] for d in departamentos_data)
+#     total_auto_global = sum(d['auto_contestadas'] for d in departamentos_data)
+#     total_jefe_global = sum(d['jefe_contestadas'] for d in departamentos_data)
+
+#     global_kpis = {
+#         'total_empleados': total_global_empleados,
+#         'auto_contestadas': total_auto_global,
+#         'auto_porcentaje': round((total_auto_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
+#         'jefe_contestadas': total_jefe_global,
+#         'jefe_porcentaje': round((total_jefe_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
+#     }
+
+#     context = {
+#         'global_kpis': global_kpis,
+#         'departamentos_dashboard': departamentos_data,
+#     }
+#     return render(request, 'admin/index.html', context)        

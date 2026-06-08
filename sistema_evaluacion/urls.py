@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from rh import views  # <-- ESTA ES LA LÍNEA MÁGICA QUE FALTABA
+from rh.admin import admin_site
 
 urlpatterns = [
     # 1. TRASLADAMOS LA RUTA AL INICIO (Antes de admin.site.urls)
@@ -26,7 +27,8 @@ urlpatterns = [
     path('admin/panel-evaluacion/', views.panel_evaluacion_view, name='panel_evaluacion'),    
     
     # 2. El administrador de Django se queda abajo
-    path('admin/', admin.site.urls),
+    #path('admin/', admin.site.urls),
+    path('admin/', admin_site.urls),  # ⬅️ Cambiamos admin.site.urls por admin_site.urls
     
     # 3. Tus rutas de procesamiento de formularios
     path('evaluacion/guardar/', views.guardar_evaluacion_view, name='guardar_evaluacion'),
