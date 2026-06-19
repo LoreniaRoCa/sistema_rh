@@ -22,6 +22,8 @@ from rh.admin import admin_site
 urlpatterns = [
     # 1. TRASLADAMOS LA RUTA AL INICIO (Antes de admin.site.urls)
     path('admin/descargar-plantilla/<str:model_name>/', views.descargar_plantilla_excel, name='descargar_plantilla'),
+    path('evaluaciones/asignacion-competencias/exportar/', views.exportar_competencias_excel, name='exportar_competencias_excel'),
+    path('admin/resumen-evaluaciones/excel-detalle/', views.exportar_detalle_competencias_excel, name='exportar_detalle_competencias_excel'),    
     path('admin/resumen-evaluaciones/excel/', views.exportar_resumen_excel, name='exportar_resumen_excel'), # ⬅️ Agregada aquí arriba
     path('admin/resumen-evaluaciones/', views.resumen_evaluaciones_view, name='resumen_evaluaciones'),    
     path('admin/panel-evaluacion/', views.panel_evaluacion_view, name='panel_evaluacion'),    
@@ -33,6 +35,8 @@ urlpatterns = [
     # 3. Tus rutas de procesamiento de formularios
     path('evaluacion/guardar/', views.guardar_evaluacion_view, name='guardar_evaluacion'),
     path('panel-evaluacion/<int:subordinado_id>/', views.panel_evaluacion_view, name='panel_evaluacion'),
+    path('evaluaciones/asignacion-competencias/', views.asignacion_competencias_view, name='asignacion_competencias'),
+
 ]
 
 

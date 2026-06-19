@@ -232,6 +232,7 @@
                                                             <th class="p-4 text-sm font-bold text-slate-900 dark:text-slate-100 text-left w-3/5 align-middle">
                                                                 {{ item.clasificacion.descripcion }}
                                                             </th>
+                                                            <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">NA</th>
                                                             <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">1</th>
                                                             <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">2</th>
                                                             <th class="p-2 text-xs font-bold text-slate-900 dark:text-slate-100 w-[45px] align-middle">3</th>
@@ -245,7 +246,7 @@
                                                                 <td class="px-5 py-3 text-sm font-medium text-slate-800 dark:text-slate-200 align-middle">
                                                                     {{ competencia.descripcion }}
                                                                 </td>
-                                                                {% for i in "12345" %}
+                                                                {% for i in "012345" %}
                                                                     <td class="p-0 text-center align-middle transition-colors duration-150">
                                                                         <label class="w-full h-full flex items-center justify-center cursor-pointer py-3 px-2">
                                                                             <input type="radio" name="nota_{{ competencia.id_competencia }}" value="{{ i }}" 
@@ -304,7 +305,7 @@
                                         style="background-color: #059669 !important; color: #ffffff !important; opacity: 1 !important; display: inline-flex !important;"
                                         class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base">
                                     <span class="material-symbols-outlined text-xl" style="color: #ffffff !important;">save</span>
-                                    Guardar Evaluación Completa
+                                    Guardar Evaluación
                                 </button>
                             </div>
                         </form>
@@ -374,7 +375,7 @@
 
             displays.forEach(disp => {
                 const val = parseFloat(disp.innerText);
-                if (val > 0) {
+                if (!isNaN(val) && val > 0) {
                     suma += val;
                     conteo++;
                 }
@@ -390,23 +391,28 @@
             const radios = box.querySelectorAll(".auto-calc-radio");
             
             function calcularPromedioIndividual() {
-                const filas = box.querySelectorAll(".fila-pregunta-evaluable");
-                let sumaTotal = 0;
-                let preguntasRespondidas = 0;
+                let suma = 0;
+                let evaluadas = 0;
 
-                filas.forEach(fila => {
-                    const seleccionado = fila.querySelector(".auto-calc-radio:checked");
-                    if (seleccionado) {
-                        sumaTotal += parseInt(seleccionado.value);
-                        preguntasRespondidas++;
+                box.querySelectorAll(".auto-calc-radio:checked").forEach(radio => {
+                    let valor = parseInt(radio.value);
+                    // Ignora el 0 (que corresponde a la opción NA)
+                    if (valor > 0) {
+                        suma += valor;
+                        evaluadas++;
                     }
                 });
 
-                const promedioDisplay = box.querySelector(".promedio-display");
-                if (promedioDisplay) {
-                    promedioDisplay.innerText = preguntasRespondidas > 0 ? (sumaTotal / preguntasRespondidas).toFixed(1) : "0.0";
+                // Si hay competencias válidas saca el promedio, si no, lo dejamos en 0.0
+                let promedio = evaluadas > 0 ? (suma / evaluadas) : 0;
+                
+                // CORRECCIÓN 1: Cambiado de ".promedio-seccion" a ".promedio-display" para coincidir con tu HTML
+                let celdaPromedio = box.querySelector(".promedio-display");
+                if (celdaPromedio) {
+                    celdaPromedio.textContent = promedio > 0 ? promedio.toFixed(1) : "0.0";
                 }
 
+                // CORRECCIÓN 2: Cambiado "universales" por "generales" para coincidir con tus IDs del HTML
                 actualizarGranPromedio("contenedor-generales", "gran-promedio-generales");
                 actualizarGranPromedio("contenedor-especificas", "gran-promedio-especificas");
             }
@@ -418,11 +424,12 @@
                     const filaActual = radio.closest("tr");
                     const celdaActual = radio.closest("td");
 
-                    filaActual.querySelectorAll("td").forEach(td => {
-                        td.classList.remove("radio-seleccionado");
-                    });
-
-                    filaActual.classList.add("fila-seleccionada");
+                    if (filaActual) {
+                        filaActual.querySelectorAll("td").forEach(td => {
+                            td.classList.remove("radio-seleccionado");
+                        });
+                        filaActual.classList.add("fila-seleccionada");
+                    }
                     if (celdaActual) {
                         celdaActual.classList.add("radio-seleccionado");
                     }
@@ -430,16 +437,16 @@
             });
 
             function inicializarTabla() {
+                // CORRECCIÓN 3: Se fuerza el cálculo inicial siempre (haya o no datos guardados previos)
+                calcularPromedioIndividual();
+                
                 const checkedRadiosIniciales = box.querySelectorAll(".auto-calc-radio:checked");
-                if(checkedRadiosIniciales.length > 0) {
-                    calcularPromedioIndividual();
-                    checkedRadiosIniciales.forEach(radio => {
-                        const filaActual = radio.closest("tr");
-                        const celdaActual = radio.closest("td");
-                        if (filaActual) filaActual.classList.add("fila-seleccionada");
-                        if (celdaActual) celdaActual.classList.add("radio-seleccionado");
-                    });
-                }
+                checkedRadiosIniciales.forEach(radio => {
+                    const filaActual = radio.closest("tr");
+                    const celdaActual = radio.closest("td");
+                    if (filaActual) filaActual.classList.add("fila-seleccionada");
+                    if (celdaActual) celdaActual.classList.add("radio-seleccionado");
+                });
             }
             inicializarTabla();
         });

@@ -4,11 +4,24 @@ register = template.Library()
 
 @register.filter(name='get_item')
 def get_item(dictionary, key):
-    """Obtiene un valor del diccionario usando la llave, convirtiendo ambos a string para asegurar match"""
     if not dictionary:
-        return ""
-    # Convertimos la llave a string por si en el dict es Int y en el HTML es String, o viceversa
-    return dictionary.get(key) or dictionary.get(str(key)) or dictionary.get(int(key) if str(key).isdigit() else key) or ""
+        return None
+
+    if key in dictionary:
+        return dictionary[key]
+
+    str_key = str(key)
+    if str_key in dictionary:
+        return dictionary[str_key]
+
+    try:
+        int_key = int(key)
+        if int_key in dictionary:
+            return dictionary[int_key]
+    except (ValueError, TypeError):
+        pass
+
+    return None
 
 @register.filter
 def punto_decimal(value):

@@ -43,7 +43,7 @@ class CompetenciaClasificacion(models.Model):
     tipo = models.CharField(
         max_length=1,
         choices=OPCIONES_CLASIFICACION,   # Esto lo convierte en una lista desplegable
-        default='G',              # Por defecto estará seleccionado "General"
+        default='E',              # Por defecto estará seleccionado "E"
         verbose_name="Tipo Competencia"
     )
 
@@ -100,7 +100,7 @@ class Empleado(models.Model):
         db_column='id_jefe', 
         blank=True, 
         null=True,
-        verbose_name="Jefe Inmediato"
+        verbose_name="Jefe Inmediato",
     )
     
     id_puesto = models.ForeignKey(

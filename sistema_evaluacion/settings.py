@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from django.urls import reverse_lazy
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -189,8 +190,14 @@ UNFOLD = {
                         "icon": "analytics",
                         "permission": lambda request: request.user.is_superuser,
                     },
+                    {
+                        "title": "Asignación de Competencias",
+                        "link": reverse_lazy("asignacion_competencias"),
+                        "icon": "assignment", # Icono de Unfold/Material Icons
+                    },
                 ]
             },
+            
             {
                 "title": "Catálogos del Sistema",
                 "separator": True,
@@ -225,6 +232,22 @@ UNFOLD = {
                         "icon": "event_note",
                         "link": "/admin/rh/evaluacion/", 
                     },                    
+                ],
+            },
+            # 💡 CONFIGURACIÓN DE SEGURIDAD UTILIZANDO FORMATO DE MODELO RECONOCIDO POR UNFOLD
+            {
+                "title": "Seguridad del Sitio",
+                "items": [
+                    {
+                        "title": "Usuarios",
+                        "link": reverse_lazy("admin:auth_user_changelist"), # Regresamos a la ruta nativa corregida
+                        "icon": "people",
+                    },
+                    {
+                        "title": "Grupos y Permisos",
+                        "link": reverse_lazy("admin:auth_group_changelist"), # Ruta nativa para grupos
+                        "icon": "gavel",
+                    },
                 ],
             },
         ],

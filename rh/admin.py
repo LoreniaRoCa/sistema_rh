@@ -1,3 +1,6 @@
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.db import models  
 from django.contrib import admin
 from django.urls import path
@@ -11,13 +14,6 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db import connection
 
-# Importación explícita de todos los modelos requeridos
-from .models import (
-    Puesto, Departamento, Empleado, CompetenciaClasificacion, 
-    Competencia, Evaluacion, EvaluacionDet, ClasificacionPorPuesto, 
-    ClasificacionPorEmpleado, EmpleadoCompetenciaAsignada
-)
-
 class CustomAdminSite(UnfoldAdminSite):
     # Le decimos a Unfold qué plantilla usar para la página principal
     index_template = "admin/index.html"
@@ -25,8 +21,8 @@ class CustomAdminSite(UnfoldAdminSite):
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         
-        if not request.user.is_superuser:
-            return redirect('/admin/panel-evaluacion/')
+        #if not request.user.is_superuser:
+        #    return redirect('/admin/panel-evaluacion/')
 
         # Diccionario intermedio para agrupar las filas por nombre de departamento
         departamentos_agrupados = {}
@@ -111,6 +107,34 @@ class CustomAdminSite(UnfoldAdminSite):
 
 # Instanciación del sitio personalizado
 admin_site = CustomAdminSite(name='custom_admin')
+
+# Desasociamos los registros por defecto (en caso de ser necesario)
+# e incorporamos el soporte de visualización para tu panel personalizado de Unfold
+try:
+    admin.site.unregister(User)
+    admin.site.unregister(Group)
+except admin.sites.NotRegistered:
+    pass
+
+# Registramos Usuarios y Grupos para que tu URLconf sepa que existen en /admin/
+# Registramos Usuarios y Grupos para que tu URLconf sepa que existen en tu 'admin_site' personalizado de Unfold
+@admin.register(User, site=admin_site)  # 🌟 Agregamos 'site=admin_site' para que se vinculen a tu dashboard
+class UserAdmin(BaseUserAdmin, ModelAdmin):
+    pass
+
+@admin.register(Group, site=admin_site) # 🌟 Agregamos 'site=admin_site' para que se vinculen a tu dashboard
+class GroupAdmin(BaseGroupAdmin, ModelAdmin):
+    pass
+
+
+# Importación explícita de todos los modelos requeridos
+from .models import (
+    Puesto, Departamento, Empleado, CompetenciaClasificacion, 
+    Competencia, Evaluacion, EvaluacionDet, ClasificacionPorPuesto, 
+    ClasificacionPorEmpleado, EmpleadoCompetenciaAsignada
+)
+
+
 
 class CatalogosOrdenadosAdmin(admin.ModelAdmin):
     """
@@ -290,6 +314,10 @@ class ClasificacionPorPuestoInlineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # 🌟 FILTRO MÁGICO: Limitamos las opciones del combo a solo las específicas ('E') ordenadas alfabéticamente
+        self.fields['id_clasificacion'].queryset = CompetenciaClasificacion.objects.filter(tipo='E').order_by('descripcion')
+
         if self.instance and self.instance.pk:
             valor_actual = self.instance.id_clasificacion_id
             self.fields['id_clasificacion'].widget.value = valor_actual
@@ -303,7 +331,7 @@ class ClasificacionPorPuestoInlineForm(forms.ModelForm):
 class ClasificacionPorPuestoInline(TabularInline):
     model = ClasificacionPorPuesto
     form = ClasificacionPorPuestoInlineForm
-    extra = 2  
+    extra = 1  # 💡 Cambiado a 1 para que se vea más limpio en el panel de Unfold
     fields = ('id_clasificacion',)
 
 
@@ -429,44 +457,54 @@ class EmpleadoAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # 🌟 NUEVO: FORZAR ORDENAMIENTO ALFABÉTICO EN LOS COMBOS PRINCIPALES DEL FORMULARIO
+        if 'user' in self.fields:
+            self.fields['user'].queryset = self.fields['user'].queryset.order_by('username')
+        
+        if 'id_jefe' in self.fields:
+            self.fields['id_jefe'].queryset = Empleado.objects.order_by('nombre_largo')
+            
+        if 'id_puesto' in self.fields:
+            self.fields['id_puesto'].queryset = Puesto.objects.order_by('descripcion')
+            
+        if 'id_departamento' in self.fields:
+            self.fields['id_departamento'].queryset = Departamento.objects.order_by('descripcion')
+            
         if self.instance and self.instance.pk:
+            empleado_id = self.instance.pk
+            # 1. Obtenemos el ID del puesto de la base de datos física de forma segura
             puesto_id = self.instance.id_puesto_id
 
-            # 1. Obtener clasificaciones asignadas al puesto actual del empleado
+            # --- UNIVERSO A: Competencias que le corresponden por su Puesto ---
             clasif_puesto_ids = list(ClasificacionPorPuesto.objects.filter(
                 id_puesto_id=puesto_id
             ).values_list('id_clasificacion_id', flat=True))
 
-            # 2. Obtener la lista de clasificaciones que están siendo ocupadas por CUALQUIER puesto
-            todas_clasif_en_uso = list(ClasificacionPorPuesto.objects.values_list('id_clasificacion_id', flat=True))
+            competencias_del_puesto_ids = list(Competencia.objects.filter(
+                id_clasificacion_id__in=clasif_puesto_ids
+            ).values_list('id_competencia', flat=True))
 
-            # 3. 💡 CORRECCIÓN CRÍTICA: Cambiamos 'ESPECIFICA' por 'E', que es el valor real en tu base de datos
-            clasif_especificas = CompetenciaClasificacion.objects.filter(
-                tipo='E'
-            ).filter(
-                models.Q(id_clasificacion__in=clasif_puesto_ids) | 
-                ~models.Q(id_clasificacion__in=todas_clasif_en_uso)
-            ).distinct()
-
-            clasif_validas_ids = list(clasif_especificas.values_list('id_clasificacion', flat=True))
-
-            # 4. Obtener las competencias específicas resultantes
-            if clasif_validas_ids:
-                queryset_competencias = Competencia.objects.filter(
-                    id_clasificacion_id__in=clasif_validas_ids
-                ).distinct().select_related('id_clasificacion').order_by('id_clasificacion__descripcion', 'descripcion')
-            else:
-                queryset_competencias = Competencia.objects.none()
-
-            self.fields['competencias_seleccionadas'].queryset = queryset_competencias
-            
-            # Cargar estado previo de los checkboxes guardados en la tabla intermedia
-            self.fields['competencias_seleccionadas'].initial = list(EmpleadoCompetenciaAsignada.objects.filter(
-                id_empleado=self.instance
+            # --- UNIVERSO B: Competencias que el empleado ya tiene guardadas ---
+            competencias_guardadas_ids = list(EmpleadoCompetenciaAsignada.objects.filter(
+                id_empleado_id=empleado_id
             ).values_list('id_competencia_id', flat=True))
 
+            # --- UNIFICACIÓN DE AMBOS UNIVERSOS (Igual al UNION de tu SQL) ---
+            todas_competencias_ids = list(set(competencias_del_puesto_ids + competencias_guardadas_ids))
+
+            # 2. Reconstruimos el queryset final limpio y ordenado
+            queryset_competencias = Competencia.objects.filter(
+                id_competencia__in=todas_competencias_ids
+            ).select_related('id_clasificacion').order_by('id_clasificacion__descripcion', 'descripcion')
+
+            # 3. Asignamos de forma explícita al campo para desactivar el candado de Django
+            self.fields['competencias_seleccionadas'].queryset = queryset_competencias
+            self.fields['competencias_seleccionadas'].initial = competencias_guardadas_ids
+
+            # Guardamos para change_view
             self.queryset_competencias_custom = queryset_competencias
-            self.competencias_iniciales_custom = self.fields['competencias_seleccionadas'].initial
+            self.competencias_iniciales_custom = competencias_guardadas_ids
         else:
             self.queryset_competencias_custom = Competencia.objects.none()
             self.competencias_iniciales_custom = []
@@ -484,8 +522,8 @@ class PuestoAdmin(ExcelImportAdmin):
     search_fields = ('descripcion',)
     inlines = [ClasificacionPorPuestoInline]
 
-admin.site.register(Puesto, PuestoAdmin)
-
+#admin.site.register(Puesto, PuestoAdmin)
+admin_site.register(Puesto, PuestoAdmin)
 
 class DepartamentoAdmin(ExcelImportAdmin):
     model_class = Departamento
@@ -494,8 +532,8 @@ class DepartamentoAdmin(ExcelImportAdmin):
     list_display = ('id_departamento', 'descripcion', 'acciones_rh')
     search_fields = ('descripcion',)
 
-admin.site.register(Departamento, DepartamentoAdmin)
-
+#admin.site.register(Departamento, DepartamentoAdmin)
+admin_site.register(Departamento, DepartamentoAdmin)
 class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     form = EmpleadoAdminForm  
     model_class = Empleado
@@ -512,12 +550,16 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
         matriz_html = ""
         
         if obj:
+            # 1. Instanciamos tu formulario personalizado
             form = EmpleadoAdminForm(instance=obj)
-            queryset = form.queryset_competencias_custom
             
-            # 💡 CORRECCIÓN CRÍTICA: Obtenemos los IDs numéricos exactos guardados para este empleado
+            # 🌟 ACCIÓN CLAVE: Forzamos al campo interno a aceptar TODAS las competencias unificadas
+            queryset = form.queryset_competencias_custom
+            form.fields['competencias_seleccionadas'].queryset = queryset
+            
+            # 2. Obtenemos el set de IDs guardados utilizando la columna relacional física
             guardados_ids = set(EmpleadoCompetenciaAsignada.objects.filter(
-                id_empleado=obj
+                id_empleado_id=obj.pk
             ).values_list('id_competencia_id', flat=True))
 
             if queryset.exists():
@@ -537,6 +579,7 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
                 
                 ultima_clasificacion = None
 
+                # 3. Iteramos exactamente sobre el listado del UNION
                 for comp in queryset:
                     clasif_nombre = comp.id_clasificacion.descripcion if comp.id_clasificacion else "Competencias Específicas Sueltas"
                     
@@ -553,7 +596,7 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
                         '''
                         ultima_clasificacion = clasif_nombre
 
-                    # 💡 COMPARACIÓN CORREGIDA: Validamos usando la lista pura de IDs numéricos de la BD
+                    # 4. Evaluamos si el ID numérico de la competencia iterada está guardado
                     is_checked = comp.id_competencia in guardados_ids
                     checked_str = "checked" if is_checked else ""
 
@@ -569,6 +612,17 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
                 matriz_html = '<div class="mt-6 bg-gray-50 dark:bg-zinc-900/40 p-4 rounded-lg border border-gray-200 dark:border-zinc-800"><p class="text-sm italic text-gray-400">No hay competencias específicas configuradas para el puesto de este empleado.</p></div>'
 
         extra_context['matriz_competencias_html'] = mark_safe(matriz_html)
+        
+        # 🌟 PASO COMPLEMENTARIO OBLIGATORIO PARA UNFOLD:
+        # Inyectamos el objeto de formulario procesado en el contexto para que reemplace al predeterminado
+        extra_context['adminform'] = admin.helpers.AdminForm(
+            form,
+            list(self.get_fieldsets(request, obj)),
+            self.get_prepopulated_fields(request, obj),
+            self.get_readonly_fields(request, obj),
+            model_admin=self
+        )
+        
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def save_model(self, request, obj, form, change):
@@ -584,8 +638,8 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
         for comp_id in competencias_post_ids:
             EmpleadoCompetenciaAsignada.objects.get_or_create(id_empleado=obj, id_competencia_id=comp_id)
 
-admin.site.register(Empleado, EmpleadoAdmin)
-
+#admin.site.register(Empleado, EmpleadoAdmin)
+admin_site.register(Empleado, EmpleadoAdmin)
 
 class CompetenciaClasificacionAdmin(ExcelImportAdmin):
     model_class = CompetenciaClasificacion
@@ -597,8 +651,8 @@ class CompetenciaClasificacionAdmin(ExcelImportAdmin):
     fields = ('descripcion', 'tipo')
     inlines = [CompetenciaInline]
 
-admin.site.register(CompetenciaClasificacion, CompetenciaClasificacionAdmin)
-
+#admin.site.register(CompetenciaClasificacion, CompetenciaClasificacionAdmin)
+admin_site.register(CompetenciaClasificacion, CompetenciaClasificacionAdmin)
 
 class CompetenciaAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     model_class = Competencia
@@ -608,8 +662,8 @@ class CompetenciaAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     list_filter = ('descripcion',)  
     search_fields = ('descripcion',)
 
-admin.site.register(Competencia, CompetenciaAdmin)
-
+#admin.site.register(Competencia, CompetenciaAdmin)
+admin_site.register(Competencia, CompetenciaAdmin)
 
 class EvaluacionAdmin(ExcelImportAdmin):
     model_class = Evaluacion
@@ -618,4 +672,5 @@ class EvaluacionAdmin(ExcelImportAdmin):
     list_display = ('id_evaluacion', 'descripcion', 'fecha_inicial', 'fecha_final', 'acciones_rh', 'cerrada')
     search_fields = ('descripcion',)
 
-admin.site.register(Evaluacion, EvaluacionAdmin)
+#admin.site.register(Evaluacion, EvaluacionAdmin)
+admin_site.register(Evaluacion, EvaluacionAdmin)
