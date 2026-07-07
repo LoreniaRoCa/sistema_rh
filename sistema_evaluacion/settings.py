@@ -28,6 +28,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+#EMAIL
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'                    # 🌟 Servidor SMTP de Gmail
+EMAIL_PORT = 587                                 # Puerto estándar para TLS
+EMAIL_USE_TLS = True                             # Forzar conexión segura
+EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'          # 🔑 Tu cuenta de Gmail
+
+# 🚨 IMPORTANTE: NO pongas tu contraseña normal. 
+# Pon la contraseña de 16 caracteres generada por Google:
+EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx'     
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Application definition
 
@@ -152,6 +163,8 @@ STATIC_URL = 'static/'
 UNFOLD = {
     "SITE_TITLE": "Recursos Humanos",
     "SITE_HEADER": "Recursos Humanos",
+
+
 
     "SIDEBAR_CHANGED": False,  # Evita que el JS de Unfold colapse el menú por el ancho de tus tablas
     

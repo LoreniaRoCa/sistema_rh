@@ -5,8 +5,10 @@
 #   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
+import uuid
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class Competencia(models.Model):
     id_competencia = models.AutoField(primary_key=True)
@@ -112,7 +114,18 @@ class Empleado(models.Model):
     # LA SOLUCIÓN: Saber si lidera el departamento al que está asignado
     es_jefe_departamento = models.BooleanField(
         default=False, 
-        verbose_name="¿Es la cabeza de este departamento?"
+        verbose_name="Encargado"
+    )
+    # 💡 Agrega esta línea para el nuevo campo de fecha de alta:
+    fechaalta = models.DateField(
+        null=True, 
+        blank=True, 
+        verbose_name="Fecha de Alta"
+    )
+    CorreoElectronico  = models.EmailField(
+    blank=True, 
+    null=True, 
+    verbose_name="Correo Electrónico"
     )
     # 1. Definimos las opciones que verá el usuario
     OPCIONES_ESTADO = [
@@ -125,6 +138,10 @@ class Empleado(models.Model):
         default='A',              # Por defecto estará seleccionado "Alta"
         verbose_name="Estado del Empleado"
     )
+    se_evalua = models.BooleanField(
+        default=False, 
+        verbose_name="¿Se evalúa?"
+    )    
     class Meta:
         managed = True
         db_table = 'empleado'
@@ -254,3 +271,14 @@ class EmpleadoCompetenciaAsignada(models.Model):
 
     def __str__(self):
         return f"{self.id_empleado.nombre_largo} -> {self.id_competencia.nombre}"        
+
+class TokenAccesoEvaluacion(models.Model):
+    id_token = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    empleado = models.ForeignKey('Empleado', on_delete=models.CASCADE)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    utilizado = models.BooleanField(default=False)
+
+    def es_valido(self):
+        # El enlace expira a los 5 días y no debe haber sido usado antes
+        expiracion = self.creado_en + timezone.timedelta(days=5)
+        return not self.utilizado and timezone.now() < expiracion        

@@ -28,6 +28,9 @@ urlpatterns = [
     path('admin/resumen-evaluaciones/', views.resumen_evaluaciones_view, name='resumen_evaluaciones'),    
     path('admin/panel-evaluacion/', views.panel_evaluacion_view, name='panel_evaluacion'),    
     
+    #Acceso de correo a personal a evaluar
+    path('evaluacion/acceso/<uuid:token_uuid>/', views.acceso_magico_view, name='acceso_magico'),
+
     # 2. El administrador de Django se queda abajo
     #path('admin/', admin.site.urls),
     path('admin/', admin_site.urls),  # ⬅️ Cambiamos admin.site.urls por admin_site.urls
@@ -36,7 +39,6 @@ urlpatterns = [
     path('evaluacion/guardar/', views.guardar_evaluacion_view, name='guardar_evaluacion'),
     path('panel-evaluacion/<int:subordinado_id>/', views.panel_evaluacion_view, name='panel_evaluacion'),
     path('evaluaciones/asignacion-competencias/', views.asignacion_competencias_view, name='asignacion_competencias'),
-
 ]
 
 

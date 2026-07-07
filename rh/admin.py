@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+from django.core.mail import send_mail
 from django.db import models  
 from django.contrib import admin
 from django.urls import path
@@ -13,20 +14,25 @@ from unfold.sites import UnfoldAdminSite  # ⬅️ ¡ESTA ES LA LÍNEA MÁGICA Q
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db import connection
+from .models import TokenAccesoEvaluacion, Empleado
+class CustomAdminSite(UnfoldAdminSite):
+    index_template = "admin/index.html"
 
 class CustomAdminSite(UnfoldAdminSite):
-    # Le decimos a Unfold qué plantilla usar para la página principal
     index_template = "admin/index.html"
 
     def index(self, request, extra_context=None):
         extra_context = extra_context or {}
         
-        #if not request.user.is_superuser:
-        #    return redirect('/admin/panel-evaluacion/')
-
-        # Diccionario intermedio para agrupar las filas por nombre de departamento
-        departamentos_agrupados = {}
+        departamentos_dict = {}
+        # Cambiamos jefes de lista a diccionario temporal para agrupar en Python
+        jefes_dict = {} 
         
+        total_global_empleados = 0
+        total_ambas_completadas_global = 0
+        total_auto_global = 0
+        total_jefe_global = 0
+
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT 
@@ -34,74 +40,113 @@ class CustomAdminSite(UnfoldAdminSite):
                     jefe, 
                     numempleados, 
                     autoevaluados, 
-                    evaluados 
+                    evaluados,
+                    ambas  -- ⬅️ Agregamos la nueva columna aquí (row[5])
                 FROM vista_dashboard_departamentos
-                ORDER BY departamento ASC, jefe ASC
             """)
             rows = cursor.fetchall()
             
             for row in rows:
-                nom_depto = row[0]
-                jefe_name = row[1]
-                num_empleados = int(row[2] or 0)
-                auto_contestadas = int(row[3] or 0)
-                jefe_contestadas = int(row[4] or 0)
+                dep_nombre = row[0] or "Sin Departamento"
+                jefe_nombre = row[1] or "Sin Jefe Asignado"
                 
-                auto_pendientes = max(0, num_empleados - auto_contestadas)
-                jefe_pendientes = max(0, num_empleados - jefe_contestadas)
-                
-                auto_pct = round((auto_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
-                jefe_pct = round((jefe_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
-                
-                # Modificamos las llaves para acoplarnos idéntico a los campos de tu index.html
-                subgrupo_jefe = {
-                    'jefe': jefe_name,
-                    'total_empleados': num_empleados,
-                    'auto_contestadas': auto_contestadas,
-                    'auto_por_contestar': auto_pendientes,
-                    'auto_pct': auto_pct,
-                    'jefe_contestadas': jefe_contestadas,
-                    'jefe_por_contestar': jefe_pendientes,
-                    'jefe_pct': jefe_pct,
-                }
-                
-                if nom_depto not in departamentos_agrupados:
-                    departamentos_agrupados[nom_depto] = {
-                        'nombre': nom_depto,
-                        'total_empleados_depto': 0,
-                        'jefes_lista': []  # 🌟 FIJADO: Coincide con 'depto.jefes_lista' del HTML
+                num_emp = int(row[2] or 0)
+                auto_ev = int(row[3] or 0)
+                jefe_ev = int(row[4] or 0)
+                ambas_ev = int(row[5] or 0)  
+
+                # 1. MANTENER DEPARTAMENTOS INTACTOS
+                if dep_nombre not in departamentos_dict:
+                    departamentos_dict[dep_nombre] = {
+                        'num_empleados': 0,
+                        'auto_evaluados': 0,
+                        'evaluados': 0,
+                        'porcentaje': 0
                     }
                 
-                departamentos_agrupados[nom_depto]['jefes_lista'].append(subgrupo_jefe)
-                departamentos_agrupados[nom_depto]['total_empleados_depto'] += num_empleados
+                departamentos_dict[dep_nombre]['num_empleados'] += num_emp
+                departamentos_dict[dep_nombre]['auto_evaluados'] += auto_ev
+                departamentos_dict[dep_nombre]['evaluados'] += jefe_ev
+                
+                total_dep = departamentos_dict[dep_nombre]['num_empleados']
+                autos_dep = departamentos_dict[dep_nombre]['auto_evaluados']
+                if total_dep > 0:
+                    departamentos_dict[dep_nombre]['porcentaje'] = round((autos_dep / total_dep) * 100)
+                else:
+                    departamentos_dict[dep_nombre]['porcentaje'] = 0
 
-        # Convertir el diccionario intermedio a la lista ordenada para el HTML
-        departamentos_lista = list(departamentos_agrupados.values())
+                # 2. ACTUALIZACIÓN DE KPIS GLOBALES CON LA COLUMNA CORRECTA
+                total_global_empleados += num_emp
+                total_auto_global += auto_ev
+                total_jefe_global += jefe_ev
+                total_ambas_completadas_global += ambas_ev  
+                
+                # 3. AGRUPACIÓN Y SUMARIZACIÓN POR JEFE
+                if jefe_nombre not in jefes_dict:
+                    jefes_dict[jefe_nombre] = {
+                        'nombre': jefe_nombre,
+                        'total_empleados': 0,
+                        'auto_contestadas': 0,
+                        'jefe_contestadas': 0,
+                    }
+                
+                # Vamos acumulando los valores de todos los departamentos que pertenezcan a este jefe
+                jefes_dict[jefe_nombre]['total_empleados'] += num_emp
+                jefes_dict[jefe_nombre]['auto_contestadas'] += auto_ev
+                jefes_dict[jefe_nombre]['jefe_contestadas'] += jefe_ev
 
-        # --- CÁLCULO DE KPIs GLOBALES (Sumatorias reales sobre la lista estructurada) ---
-        total_global_empleados = 0
-        total_auto_global = 0
-        total_jefe_global = 0
-        
-        for depto in departamentos_lista:
-            for j in depto['jefes_lista']:
-                total_global_empleados += j['total_empleados']
-                total_auto_global += j['auto_contestadas']
-                total_jefe_global += j['jefe_contestadas']
+        # --- POST-PROCESAMIENTO DE JEFES (Cálculo de porcentajes y colores) ---
+        jefes_data = []
+        for jefe_nombre, data in jefes_dict.items():
+            tot_emp = data['total_empleados']
+            auto_cont = data['auto_contestadas']
+            jefe_cont = data['jefe_contestadas']
 
-        global_kpis = {
-            'total_empleados': total_global_empleados,
-            'auto_contestadas': total_auto_global,
-            'auto_porcentaje': round((total_auto_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
-            'jefe_contestadas': total_jefe_global,
-            'jefe_porcentaje': round((total_jefe_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
+            # Calcular porcentajes sobre los totales agrupados del jefe
+            auto_pct = round((auto_cont / tot_emp * 100), 1) if tot_emp > 0 else 0.0
+            jefe_pct = round((jefe_cont / tot_emp * 100), 1) if tot_emp > 0 else 0.0
+
+            # Lógica de colores de semáforos para las barras de progreso
+            color_auto = "#ef4444" if auto_pct < 40 else ("#f59e0b" if auto_pct < 85 else "#72a651")
+            color_jefe = "#ef4444" if jefe_pct < 40 else ("#f59e0b" if jefe_pct < 85 else "#72a651")
+
+            jefes_data.append({
+                'nombre': jefe_nombre,
+                'total_empleados': tot_emp,
+                'auto_contestadas': auto_cont,
+                'auto_pct': auto_pct,
+                'color_auto': color_auto,
+                'jefe_contestadas': jefe_cont,
+                'jefe_pct': jefe_pct,
+                'color_jefe': color_jefe,
+            })
+
+        # Ordenar alfabéticamente por nombre de jefe
+        jefes_data = sorted(jefes_data, key=lambda x: x['nombre'])
+
+        # --- CÁLCULO DE KPIS GLOBAL ---
+        pct_general = round((total_ambas_completadas_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0
+        pct_auto = round((total_auto_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0
+        pct_jefe = round((total_jefe_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0
+
+        offset_general = round(251.2 * (1 - (pct_general / 100)), 1)
+        offset_auto = round(251.2 * (1 - (pct_auto / 100)), 1)
+        offset_jefe = round(251.2 * (1 - (pct_jefe / 100)), 1)
+
+        extra_context["global_kpis"] = {
+            "general_completadas": total_ambas_completadas_global,
+            "general_porcentaje": pct_general,
+            "general_offset": offset_general,
+            "auto_contestadas": total_auto_global,
+            "auto_porcentaje": pct_auto,
+            "auto_offset": offset_auto,
+            "jefe_contestadas": total_jefe_global,
+            "jefe_porcentaje": pct_jefe,
+            "jefe_offset": offset_jefe,
         }
 
-        # Vinculación perfecta con los nombres del contexto de tu index.html
-        extra_context.update({
-            'global_kpis': global_kpis,
-            'departamentos_dashboard': departamentos_lista,  # 🌟 CAMBIADO AQUÍ PARA RECONCILIAR CON EL HTML
-        })
+        extra_context["departamentos"] = departamentos_dict
+        extra_context["jefes_data"] = jefes_data
 
         return super().index(request, extra_context=extra_context)
 
@@ -455,6 +500,14 @@ class EmpleadoAdminForm(forms.ModelForm):
         model = Empleado
         fields = '__all__'
 
+        # 🌟 AGREGA ESTA PROPIEDAD AQUÍ ABAJO:
+        widgets = {
+            'fechaalta': forms.DateInput(
+                format='%Y-%m-%d',  # 🌟 Obliga a Django a enviar el dato en formato AAAA-MM-DD
+                attrs={'type': 'date'}
+            ),
+        }    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -470,7 +523,7 @@ class EmpleadoAdminForm(forms.ModelForm):
             
         if 'id_departamento' in self.fields:
             self.fields['id_departamento'].queryset = Departamento.objects.order_by('descripcion')
-            
+
         if self.instance and self.instance.pk:
             empleado_id = self.instance.pk
             # 1. Obtenemos el ID del puesto de la base de datos física de forma segura
@@ -532,18 +585,73 @@ class DepartamentoAdmin(ExcelImportAdmin):
     list_display = ('id_departamento', 'descripcion', 'acciones_rh')
     search_fields = ('descripcion',)
 
+@admin.action(description='Enviar Enlaces de evaluación por Correo')
+def enviar_enlaces_magicos(modeladmin, request, queryset):
+    # 🌟 DETECCIÓN DINÁMICA: 
+    # Si el queryset es de "Empleado", usamos los seleccionados.
+    # Si es de "Evaluacion", buscamos a todos los empleados activos de la empresa.
+    # 🌟 DETECCIÓN DINÁMICA: 
+    # Filtramos para que tengan correo electrónico válido Y que el campo se_evalua sea True
+    if queryset.model == Empleado:
+        empleados = queryset.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='').filter(se_evalua=True)
+    else:
+        # Viene del catálogo de Evaluaciones -> Mandar a todos los que cumplan con los requisitos
+        empleados = Empleado.objects.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='').filter(se_evalua=True)
+    
+    if not empleados.exists():
+        modeladmin.message_user(
+            request, 
+            "No se encontraron empleados con un Correo Electrónico válido para procesar.", 
+            messages.WARNING
+        )
+        return
+
+    contador_correos = 0
+    for empleado in empleados:
+        # 1. Crear el token secreto para este empleado
+        token = TokenAccesoEvaluacion.objects.create(empleado=empleado)
+        
+        # 2. Construir la URL exclusiva detectando el sitio automáticamente
+        dominio_sitio = request.build_absolute_uri('/')
+        url_acceso = f"{dominio_sitio}evaluacion/acceso/{token.id_token}/"
+        
+        # 3. Redactar el Correo Electrónico (Usando nombre_largo o nombre según tu modelo)
+        asunto = "Acceso Exclusivo: Tu Evaluación de Desempeño"
+        mensaje = f"Hola {empleado.nombre_largo if hasattr(empleado, 'nombre_largo') else empleado.nombre},\n\n" \
+                  f"Para acceder directamente a tu panel de evaluación sin necesidad de contraseña, " \
+                  f"haz clic en el siguiente enlace:\n\n" \
+                  f"{url_acceso}\n\n" \
+                  f"Este enlace expirará en 5 días.\n\n" \
+                  f"Saludos cordiales,\nRecursos Humanos."
+        
+        # 4. Enviar usando la configuración de Gmail SMTP
+        send_mail(
+            asunto,
+            mensaje,
+            'l.rodriguez@fruver.com.mx',  # Tu correo configurado en settings.py
+            [empleado.CorreoElectronico],
+            fail_silently=True,
+        )
+        contador_correos += 1
+        
+    modeladmin.message_user(
+        request, 
+        f"Se generaron los tokens y se enviaron {contador_correos} correos exitosamente."
+    )    
+
 #admin.site.register(Departamento, DepartamentoAdmin)
 admin_site.register(Departamento, DepartamentoAdmin)
 class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     form = EmpleadoAdminForm  
     model_class = Empleado
     pk_field_name = 'id_empleado'
-    excel_columns = ['id_empleado', 'nombre_largo', 'id_puesto_id', 'id_departamento_id', 'id_jefe_id', 'es_jefe_departamento', 'estado_empleado']
-    list_display = ('id_empleado', 'nombre_largo', 'id_puesto', 'id_departamento', 'es_jefe_departamento', 'estado_empleado', 'acciones_rh')
-    list_filter = ('id_departamento', 'id_puesto', 'es_jefe_departamento', 'estado_empleado')
+    excel_columns = ['id_empleado', 'nombre_largo', 'id_puesto_id', 'id_departamento_id', 'id_jefe_id', 'es_jefe_departamento', 'CorreoElectronico', 'estado_empleado', 'fechaalta', 'se_evalua']
+    list_display = ('id_empleado', 'nombre_largo', 'id_puesto', 'id_departamento', 'id_jefe', 'es_jefe_departamento', 'CorreoElectronico', 'estado_empleado', 'fechaalta', 'se_evalua', 'acciones_rh')
+    list_filter = ('id_departamento', 'id_puesto', 'es_jefe_departamento', 'CorreoElectronico', 'id_jefe', 'estado_empleado', 'se_evalua')
     search_fields = ('nombre_largo', 'id_puesto__descripcion')
     inlines = []  
-
+    actions = [enviar_enlaces_magicos]
+    action_submit_label = "Ejecutar acción"
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
@@ -665,12 +773,15 @@ class CompetenciaAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
 #admin.site.register(Competencia, CompetenciaAdmin)
 admin_site.register(Competencia, CompetenciaAdmin)
 
+
 class EvaluacionAdmin(ExcelImportAdmin):
     model_class = Evaluacion
     pk_field_name = 'id_evaluacion'
     excel_columns = ['descripcion', 'fecha_inicial', 'fecha_final']
     list_display = ('id_evaluacion', 'descripcion', 'fecha_inicial', 'fecha_final', 'acciones_rh', 'cerrada')
     search_fields = ('descripcion',)
+    actions = [enviar_enlaces_magicos]
+    action_submit_label = "Ejecutar acción"
 
 #admin.site.register(Evaluacion, EvaluacionAdmin)
 admin_site.register(Evaluacion, EvaluacionAdmin)

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
-from rh.models import EmpleadoCompetenciaAsignada, ClasificacionPorPuesto, CompetenciaClasificacion, Competencia
+from rh.models import EvaluacionDet, EmpleadoCompetenciaAsignada, ClasificacionPorPuesto, CompetenciaClasificacion, Competencia
 
 class Command(BaseCommand):
     help = 'Borra de forma segura los datos de las competencias y FUERZA el reinicio de los IDs a 1'
@@ -19,6 +19,7 @@ class Command(BaseCommand):
                 ClasificacionPorPuesto.objects.all().delete()
                 CompetenciaClasificacion.objects.all().delete()
                 Competencia.objects.all().delete()
+
                 
                 self.stdout.write(self.style.SUCCESS("✔ Datos eliminados de las 4 tablas."))
 

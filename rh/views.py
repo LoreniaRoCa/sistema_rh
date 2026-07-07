@@ -3,7 +3,7 @@
 # ==========================================
 import openpyxl  
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  
-
+from django.core.mail import send_mail
 from django.db.models import Avg, Q 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -11,11 +11,14 @@ from django.contrib import messages
 from django.apps import apps 
 from django.http import HttpResponse
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth import login
+from django.contrib import messages
+
 
 # 💡 INCLUSIÓN: Importamos el nuevo modelo de la tabla intermedia
 from .models import (
     Empleado, CompetenciaClasificacion, Competencia, Evaluacion, 
-    EvaluacionDet, EvaluacionComentario, EmpleadoCompetenciaAsignada
+    EvaluacionDet, EvaluacionComentario, EmpleadoCompetenciaAsignada, TokenAccesoEvaluacion
 )
 from django.db import connection
 from django.utils import timezone
@@ -238,7 +241,7 @@ def guardar_evaluacion_view(request):
         return redirect('panel_evaluacion')
 
     return redirect('panel_evaluacion')
-
+        
 def Exam_clean_text(text):
     return text if text != "" else None
 
@@ -296,8 +299,8 @@ def resumen_evaluaciones_view(request):
                 promedio_jefe = eval_gen if eval_gen > 0 else eval_esp
 
             # Omitir registros sin ninguna evaluación iniciada
-            if promedio_auto == 0.0 and promedio_jefe == 0.0:
-                continue
+            #if promedio_auto == 0.0 and promedio_jefe == 0.0:
+            #    continue
 
             # --- PROMEDIO TOTAL COMBINADO ---
             if promedio_auto > 0 and promedio_jefe > 0:
@@ -421,8 +424,8 @@ def exportar_resumen_excel(request):
                 promedio_jefe = eval_gen if eval_gen > 0 else eval_esp
 
             # Omitir registros sin ninguna evaluación iniciada (igual que en el HTML)
-            if promedio_auto == 0.0 and promedio_jefe == 0.0:
-                continue
+            #if promedio_auto == 0.0 and promedio_jefe == 0.0:
+            #    continue
 
             # --- PROMEDIO TOTAL COMBINADO ---
             if promedio_auto > 0 and promedio_jefe > 0:
@@ -923,62 +926,24 @@ def exportar_competencias_excel(request):
     wb.save(response)
     return response
 
-# def dashboard_evaluaciones(request):
-#     departamentos_data = []
+def acceso_magico_view(request, token_uuid):
+    token = get_object_or_404(TokenAccesoEvaluacion, id_token=token_uuid)
     
-#     # Ejecutamos tu nueva vista de Supabase
-#     with connection.cursor() as cursor:
-#         cursor.execute("""
-#             SELECT 
-#                 departamento, 
-#                 jefe, 
-#                 numempleados, 
-#                 autoevaluados, 
-#                 evaluados 
-#             FROM vista_dashboard_departamentos
-#         """)
-#         rows = cursor.fetchall()
+    if token.es_valido():
+        # Obtener el usuario de Django ligado a ese empleado
+        usuario_django = token.empleado.user 
         
-#         for row in rows:
-#             num_empleados = int(row[2])
-#             auto_contestadas = int(row[3])
-#             jefe_contestadas = int(row[4])
+        if usuario_django:
+            # 🌟 El truco: Iniciar sesión en Django sin pedir contraseña
+            usuario_django.backend = 'django.contrib.auth.backends.ModelBackend'
+            login(request, usuario_django)
             
-#             # Cálculo de pendientes
-#             auto_pendientes = num_empleados - auto_contestadas
-#             jefe_pendientes = num_empleados - jefe_contestadas
+            # Opcional: Marcar como utilizado si solo quieres que sirva una vez
+            # token.utilizado = True
+            # token.save()
             
-#             # Cálculo de porcentajes para las barras de progreso
-#             auto_pct = round((auto_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
-#             jefe_pct = round((jefe_contestadas / num_empleados * 100), 1) if num_empleados > 0 else 0.0
+            #messages.success(request, f"¡Bienvenido {token.empleado.nombre_largo}! Acceso concedido.")
+            return redirect('panel_evaluacion') # 👈 Ruta de tu panel de evaluaciones
             
-#             departamentos_data.append({
-#                 'nombre': row[0],
-#                 'jefe': row[1],
-#                 'total_empleados': num_empleados,
-#                 'auto_contestadas': auto_contestadas,
-#                 'auto_por_contestar': auto_pendientes,
-#                 'auto_pct': auto_pct,
-#                 'jefe_contestadas': jefe_contestadas,
-#                 'jefe_por_contestar': jefe_pendientes,
-#                 'jefe_pct': jefe_pct,
-#             })
-
-#     # --- CÁLCULO DE KPIs GLOBALES (Sumatorias de todas las filas) ---
-#     total_global_empleados = sum(d['total_empleados'] for d in departamentos_data)
-#     total_auto_global = sum(d['auto_contestadas'] for d in departamentos_data)
-#     total_jefe_global = sum(d['jefe_contestadas'] for d in departamentos_data)
-
-#     global_kpis = {
-#         'total_empleados': total_global_empleados,
-#         'auto_contestadas': total_auto_global,
-#         'auto_porcentaje': round((total_auto_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
-#         'jefe_contestadas': total_jefe_global,
-#         'jefe_porcentaje': round((total_jefe_global / total_global_empleados * 100), 1) if total_global_empleados > 0 else 0.0,
-#     }
-
-#     context = {
-#         'global_kpis': global_kpis,
-#         'departamentos_dashboard': departamentos_data,
-#     }
-#     return render(request, 'admin/index.html', context)        
+    messages.error(request, "El enlace de acceso ya no es válido o ha expirado.")
+    return redirect('login') # Si falló, lo manda al login normal
