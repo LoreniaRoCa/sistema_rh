@@ -15,6 +15,10 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.db import connection
 from .models import TokenAccesoEvaluacion, Empleado
+import uuid
+from django.http import HttpResponse, JsonResponse
+from django.db.models import Q
+
 class CustomAdminSite(UnfoldAdminSite):
     index_template = "admin/index.html"
 
@@ -207,8 +211,11 @@ class ExcelUploadForm(forms.Form):
 # =========================================================================
 #  CLASE BASE PARA IMPORTACIÓN EXCEL
 # =========================================================================
+# =========================================================================
+#  CLASE BASE PARA IMPORTACIÓN EXCEL (CORREGIDA)
+# =========================================================================
 class ExcelImportAdmin(ModelAdmin):
-    actions = None 
+    # 🌟 ELIMINAMOS LA LÍNEA: actions = None (Para permitir que Unfold procese las acciones)
     import_template = "admin/importar_excel.html"
     change_list_template = "admin/carga_masiva_change_list.html"
 
@@ -244,12 +251,6 @@ class ExcelImportAdmin(ModelAdmin):
         )
     acciones_rh.short_description = "Acciones"
 
-    # def get_urls(self):
-    #     urls = super().get_urls()
-    #     custom_urls = [
-    #         path('import-excel/', self.admin_site.admin_view(self.import_excel_view), name=f'{self.model_class._meta.app_label}_{self.model_class._meta.model_name}_import_excel' if self.model_class else 'import_excel'),
-    #     ]
-    #     return custom_urls + urls
     def get_urls(self):
         urls = super().get_urls()
         if not self.model:
@@ -259,19 +260,16 @@ class ExcelImportAdmin(ModelAdmin):
         model_name = self.model._meta.model_name
 
         custom_urls = [
-            # Cambiamos 'importar-excel-catalogo/' por 'importar-excel/'
             path(
                 'importar-excel/', 
                 self.admin_site.admin_view(self.import_excel_view), 
                 name=f'{app_label}_{model_name}_import_excel'
             ),
         ]
-        # Ponemos las custom_urls AL INICIO para que Django las evalúe antes que el ID del objeto
         return custom_urls + urls
 
     def import_excel_view(self, request):
         if request.method == "POST":
-            # Recibimos el archivo directo desde el input del listado
             excel_file = request.FILES.get("excel_file")
             
             if not excel_file:
@@ -286,48 +284,68 @@ class ExcelImportAdmin(ModelAdmin):
                 wb = openpyxl.load_workbook(excel_file, data_only=True)
                 sheet = wb.active
 
+                # 1. Mapeo inteligente de encabezados
+                header_row = [str(cell.value).strip().lower() if cell.value is not None else "" for cell in sheet[1]]
+                col_map = {name: idx for idx, name in enumerate(header_row) if name}
+
                 success_count = 0
                 error_count = 0
 
+                # 2. Procesamos los datos
                 for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
                     if not any(row):  
                         continue
 
                     data = {}
-                    for col_idx, col_name in enumerate(self.excel_columns):
-                        if col_idx < len(row):
-                            data[col_name] = row[col_idx]
+                    for col_name in self.excel_columns:
+                        # 🌟 CORRECCIÓN AQUÍ: Si el modelo pide 'id_puesto_id' pero el excel tiene 'id_puesto', se adaptan automáticamente
+                        posibles_nombres = [
+                            col_name.lower(),
+                            col_name.lower().removesuffix('_id'),
+                            col_name.lower() + '_id'
+                        ]
+                        
+                        idx = None
+                        for nombre in posibles_nombres:
+                            if nombre in col_map:
+                                idx = col_map[nombre]
+                                break
 
-                    pk_value = data.get(self.pk_field_name)
+                        if idx is not None and idx < len(row):
+                            val = row[idx]
+                            if isinstance(val, str):
+                                val = val.strip()
+                            data[col_name] = val
 
+                    # Determinar el ID obligatorio limpiando variaciones de su nombre
+                    pk_lower = self.pk_field_name.lower()
+                    pk_idx = col_map.get(pk_lower) or col_map.get(pk_lower.removesuffix('_id')) or col_map.get(pk_lower + '_id')
+                    pk_value = row[pk_idx] if pk_idx is not None and pk_idx < len(row) else None
+
+                    if pk_value is not None and str(pk_value).strip() != "":
+                        try:
+                            pk_value = int(float(str(pk_value).strip()))
+                        except (ValueError, TypeError):
+                            error_count += 1
+                            messages.warning(request, f"Error en fila {row_idx}: El ID debe ser un número entero. Se obtuvo: {pk_value}")
+                            continue
+                    else:
+                        pk_value = None
+
+                    # 3. Guardar o Actualizar
                     if pk_value:
                         try:
-                            # CASO 1: El registro YA EXISTE en la base de datos -> Actualizamos datos
-                            instance = self.model_class.objects.get(**{self.pk_field_name: pk_value})
-                            for key, value in data.items():
-                                setattr(instance, key, value)
-                            instance.save()
+                            defaults_data = {k: v for k, v in data.items() if k != self.pk_field_name}
+                            
+                            instance, created = self.model_class.objects.update_or_create(
+                                **{self.pk_field_name: pk_value},
+                                defaults=defaults_data
+                            )
                             success_count += 1
-                        except self.model_class.DoesNotExist:
-                            try:
-                                # CASO 2: El ID no existe -> FORZAMOS la creación respetando el ID del Excel
-                                nuevo_registro = self.model_class()
-                                # Le inyectamos manualmente la llave primaria antes que nada
-                                setattr(nuevo_registro, self.pk_field_name, pk_value)
-                                
-                                # Le asignamos el resto de las columnas del excel
-                                for key, value in data.items():
-                                    if key != self.pk_field_name:
-                                        setattr(nuevo_registro, key, value)
-                                
-                                # Guardamos de forma explícita en la base de datos
-                                nuevo_registro.save()
-                                success_count += 1
-                            except Exception as e:
-                                error_count += 1
-                                messages.warning(request, f"Error en fila {row_idx} al forzar ID: {e}")
+                        except Exception as e:
+                            error_count += 1
+                            messages.warning(request, f"Error en fila {row_idx} al procesar ID {pk_value}: {e}")
                     else:
-                        # CASO 3: Si por alguna razón el Excel no traía ID, dejamos que la DB genere el consecutivo
                         try:
                             self.model_class.objects.create(**data)
                             success_count += 1
@@ -335,12 +353,11 @@ class ExcelImportAdmin(ModelAdmin):
                             error_count += 1
                             messages.warning(request, f"Error en fila {row_idx} (Sin ID): {e}")
 
-                messages.success(request, f"Importación completada. Registros procesados: {success_count}. Errores: {error_count}")
+                messages.success(request, f"Importación completada. Registros procesados exitosamente: {success_count}. Errores: {error_count}")
                 
             except Exception as e:
                 messages.error(request, f"Error crítico al procesar el archivo: {e}")
                 
-        # Al terminar, o si es un GET accidental, redirige de inmediato a la tabla del catálogo
         return redirect(f"/admin/{self.model_class._meta.app_label}/{self.model_class._meta.model_name}/")
 
 
@@ -587,57 +604,174 @@ class DepartamentoAdmin(ExcelImportAdmin):
 
 @admin.action(description='Enviar Enlaces de evaluación por Correo')
 def enviar_enlaces_magicos(modeladmin, request, queryset):
-    # 🌟 DETECCIÓN DINÁMICA: 
-    # Si el queryset es de "Empleado", usamos los seleccionados.
-    # Si es de "Evaluacion", buscamos a todos los empleados activos de la empresa.
-    # 🌟 DETECCIÓN DINÁMICA: 
-    # Filtramos para que tengan correo electrónico válido Y que el campo se_evalua sea True
-    if queryset.model == Empleado:
-        empleados = queryset.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='').filter(se_evalua=True)
-    else:
-        # Viene del catálogo de Evaluaciones -> Mandar a todos los que cumplan con los requisitos
-        empleados = Empleado.objects.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='').filter(se_evalua=True)
+    # 1. De los empleados QUE SELECCIONASTE en la lista, filtramos los que tienen correo válido
+    empleados_seleccionados = queryset.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='')
     
-    if not empleados.exists():
+    # 2. Obtenemos los IDs de todos los que son jefes en todo el sistema
+    jefes_ids = Empleado.objects.exclude(id_jefe__isnull=True).values_list('id_jefe', flat=True).distinct()
+    
+    # 3. Aplicamos el filtro OR pero únicamente sobre los empleados SELECCIONADOS en el Admin
+    empleados_a_procesar = empleados_seleccionados.filter(
+        Q(se_evalua=True) | Q(id_empleado__in=jefes_ids)
+    )
+    
+    if not empleados_a_procesar.exists():
         modeladmin.message_user(
             request, 
-            "No se encontraron empleados con un Correo Electrónico válido para procesar.", 
+            "Ninguno de los empleados seleccionados cumple con las condiciones (se_evalua=True o ser Jefe) o no tienen correo válido.", 
             messages.WARNING
         )
         return
 
-    contador_correos = 0
-    for empleado in empleados:
-        # 1. Crear el token secreto para este empleado
-        token = TokenAccesoEvaluacion.objects.create(empleado=empleado)
+    # 4. Guardamos los IDs de los seleccionados válidos en la sesión
+    empleados_ids = list(empleados_a_procesar.values_list('id_empleado', flat=True).distinct())
+    
+    session_key = f"envio_correos_{uuid.uuid4().hex}"
+    request.session[session_key] = {
+        'empleados_ids': empleados_ids,
+        'procesados': 0,
+        'total': len(empleados_ids),
+        'app_label': queryset.model._meta.app_label,
+        'model_name': queryset.model._meta.model_name,
+    }
+
+    return redirect(f"/admin/procesar-evaluaciones-loading/{session_key}/")
+
+
+# 🌟 VISTA INTERMEDIA: PANTALLA DE CARGA DE FRUVER PROCESADA POR AJAX EN TIEMPO REAL
+def procesar_evaluaciones_loading_view(request, session_key):
+    data = request.session.get(session_key)
+    if not data:
+        return redirect('/admin/')
+
+    # Si es una petición AJAX (Fetch), procesamos un lote de 3 correos para no saturar
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'ajax' in request.GET:
+        ids_restantes = data['empleados_ids']
+        total_a_procesar = min(3, len(ids_restantes)) # Lotes de 3 en 3
+        lote = ids_restantes[:total_a_procesar]
         
-        # 2. Construir la URL exclusiva detectando el sitio automáticamente
+        contador_local = 0
         dominio_sitio = request.build_absolute_uri('/')
-        url_acceso = f"{dominio_sitio}evaluacion/acceso/{token.id_token}/"
         
-        # 3. Redactar el Correo Electrónico (Usando nombre_largo o nombre según tu modelo)
-        asunto = "Acceso Exclusivo: Tu Evaluación de Desempeño"
-        mensaje = f"Hola {empleado.nombre_largo if hasattr(empleado, 'nombre_largo') else empleado.nombre},\n\n" \
-                  f"Para acceder directamente a tu panel de evaluación sin necesidad de contraseña, " \
-                  f"haz clic en el siguiente enlace:\n\n" \
-                  f"{url_acceso}\n\n" \
-                  f"Este enlace expirará en 5 días.\n\n" \
-                  f"Saludos cordiales,\nRecursos Humanos."
+        for emp_id in lote:
+            try:
+                empleado = Empleado.objects.get(id_empleado=emp_id)
+                token = TokenAccesoEvaluacion.objects.create(empleado=empleado)
+                url_acceso = f"{dominio_sitio}evaluacion/acceso/{token.id_token}/"
+                
+                asunto = "Acceso Exclusivo: Tu Evaluación de Desempeño"
+                mensaje = f"Hola {empleado.nombre_largo if hasattr(empleado, 'nombre_largo') else empleado.nombre_largo},\n\n" \
+                          f"Te compartimos tu enlace personalizado para ingresar al sistema de evaluaciones de desempeño.\n" \
+                          f"A través de este enlace podrás realizar tu autoevaluación (si te corresponde) y/o evaluar a tu personal a cargo.\n\n" \
+                          f"Haz clic en el siguiente enlace para ingresar directamente sin necesidad de contraseña:\n" \
+                          f"{url_acceso}\n\n" \
+                          f"Este enlace expirará en 5 días.\n\n" \
+                          f"Saludos cordiales,\nRecursos Humanos."
+                
+                send_mail(
+                    asunto, mensaje, 'l.rodriguez@fruver.com.mx',
+                    [empleado.CorreoElectronico], fail_silently=True
+                )
+                contador_local += 1
+            except Exception:
+                pass
         
-        # 4. Enviar usando la configuración de Gmail SMTP
-        send_mail(
-            asunto,
-            mensaje,
-            'l.rodriguez@fruver.com.mx',  # Tu correo configurado en settings.py
-            [empleado.CorreoElectronico],
-            fail_silently=True,
-        )
-        contador_correos += 1
+        # Actualizamos el estado de la sesión
+        data['empleados_ids'] = ids_restantes[total_a_procesar:]
+        data['procesados'] += total_a_procesar
+        request.session[session_key] = data
         
-    modeladmin.message_user(
-        request, 
-        f"Se generaron los tokens y se enviaron {contador_correos} correos exitosamente."
-    )    
+        # Si terminamos todo, mandamos el mensaje final de éxito
+        if len(data['empleados_ids']) == 0:
+            messages.success(request, f"Se generaron los tokens y se enviaron {data['procesados']} correos exitosamente.")
+            del request.session[session_key] # Limpiamos sesión
+            
+        return JsonResponse({
+            'completado': len(data['empleados_ids']) == 0,
+            'procesados': data['procesados'],
+            'total': data['total'],
+            'url_retorno': f"/admin/{data['app_label']}/{data['model_name']}/"
+        })
+
+    # Renderizado inicial de la Pantalla de Carga limpia (HTML Puro)
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Enviando Evaluaciones...</title>
+        <style>
+            body {{
+                margin: 0; padding: 0; width: 100vw; height: 100vh;
+                background-color: #f3f4f6;
+                display: flex; justify-content: center; align-items: center;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }}
+            .card {{
+                background: #ffffff; padding: 35px 50px; border-radius: 12px;
+                box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center;
+                border: 1px solid #e5e7eb; max-width: 420px;
+            }}
+            .spinner {{
+                animation: spin 1s linear infinite; margin: 0 auto 15px auto;
+                width: 42px; height: 42px; color: #72a651;
+            }}
+            .progress-bar-container {{
+                width: 100%; background-color: #e5e7eb; border-radius: 9999px; height: 8px; margin-top: 15px; overflow: hidden;
+            }}
+            .progress-bar {{
+                width: 0%; height: 100%; background-color: #72a651; transition: width 0.3s ease;
+            }}
+            @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <svg class="spinner" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle>
+                <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" style="opacity: 0.75;"></path>
+            </svg>
+            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600; color: #1f2937;">
+                Enviando Enlaces de Evaluación
+            </h3>
+            <p id="status-text" style="margin: 0; font-size: 14px; color: #6b7280; line-height: 1.4;">
+                Iniciando el envío seguro de correos...
+            </p>
+            <div class="progress-bar-container">
+                <div id="progress" class="progress-bar"></div>
+            </div>
+        </div>
+
+        <script>
+            function realizarEnvio() {{
+                fetch(window.location.pathname + "?ajax=1", {{
+                    headers: {{ 'X-Requested-With': 'XMLHttpRequest' }}
+                }})
+                .then(res => res.json())
+                .then(data => {{
+                    let porcentaje = Math.round((data.procesados / data.total) * 100);
+                    document.getElementById("progress").style.width = porcentaje + "%";
+                    document.getElementById("status-text").innerText = "Enviados: " + data.procesados + " de " + data.total + " correos electrónicos...";
+                    
+                    if (data.completado) {{
+                        window.location.href = data.url_retorno;
+                    }} else {{
+                        // Pequeño delay de 100ms para no saturar el servidor y continuar el bucle
+                        setTimeout(realizarEnvio, 100);
+                    }}
+                }})
+                .catch(() => {{
+                    alert("Ocurrió un problema en el servidor al enviar los correos.");
+                }});
+            }}
+            // Iniciar ciclo en cuanto carge la vista
+            window.onload = realizarEnvio;
+        </script>
+    </body>
+    </html>
+    """
+    return HttpResponse(html_content)
 
 #admin.site.register(Departamento, DepartamentoAdmin)
 admin_site.register(Departamento, DepartamentoAdmin)
@@ -645,12 +779,14 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     form = EmpleadoAdminForm  
     model_class = Empleado
     pk_field_name = 'id_empleado'
-    excel_columns = ['id_empleado', 'nombre_largo', 'id_puesto_id', 'id_departamento_id', 'id_jefe_id', 'es_jefe_departamento', 'CorreoElectronico', 'estado_empleado', 'fechaalta', 'se_evalua']
+    excel_columns = ['id_empleado', 'nombre_largo', 'id_puesto_id', 'id_departamento_id', 'CorreoElectronico', 'estado_empleado', 'fechaalta', 'se_evalua']
     list_display = ('id_empleado', 'nombre_largo', 'id_puesto', 'id_departamento', 'id_jefe', 'es_jefe_departamento', 'CorreoElectronico', 'estado_empleado', 'fechaalta', 'se_evalua', 'acciones_rh')
-    list_filter = ('id_departamento', 'id_puesto', 'es_jefe_departamento', 'CorreoElectronico', 'id_jefe', 'estado_empleado', 'se_evalua')
-    search_fields = ('nombre_largo', 'id_puesto__descripcion')
+    list_filter = ('id_departamento', 'id_puesto', 'es_jefe_departamento', 'CorreoElectronico', 'id_jefe', 'estado_empleado', 'se_evalua', 'id_jefe__nombre_largo')
+    search_fields = ('nombre_largo', 'id_puesto__descripcion', 'CorreoElectronico', 'id_jefe__nombre_largo')
     inlines = []  
     actions = [enviar_enlaces_magicos]
+    # 🌟 AGREGA ESTE MÉTODO JUSTO AQUÍ ADENTRO:
+
     action_submit_label = "Ejecutar acción"
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}

@@ -13,7 +13,7 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import login
 from django.contrib import messages
-
+from django.contrib import admin
 
 # 💡 INCLUSIÓN: Importamos el nuevo modelo de la tabla intermedia
 from .models import (
@@ -311,6 +311,8 @@ def resumen_evaluaciones_view(request):
             # --- NUEVA LÓGICA DE GRATIFICACIÓN (TEXTO EN RANGOS) ---
             if promedio_total is None or promedio_total == 0.0:
                 gratificacion = "Sin evaluar"
+            elif promedio_auto == 0 or promedio_jefe == 0:
+                gratificacion = "Incompleta"
             elif 1.0 <= promedio_total <= 1.5:
                 gratificacion = "0"
             elif 1.6 <= promedio_total <= 1.9:
@@ -346,7 +348,26 @@ def descargar_plantilla_excel(request, model_name):
     except LookupError:
         return HttpResponse("Modelo no encontrado", status=404)
 
-    columnas = [field.name for field in model._meta.fields if field.name != 'id' and not field.auto_created]
+    # 1. Intentamos obtener la configuración de excel_columns de tu Admin personalizado
+    columnas = []
+    try:
+        # Importamos localmente tu sitio de administración para evitar importaciones circulares
+        from rh.admin import admin_site
+        
+        # Buscamos directamente en el registro de tu admin_site personalizado
+        model_admin = admin_site._registry.get(model)
+        
+        if model_admin and hasattr(model_admin, 'excel_columns') and model_admin.excel_columns:
+            # Quitamos los sufijos '_id' para que el Excel de la plantilla se descargue limpio 
+            # con nombres como 'id_puesto' e 'id_departamento' y coincida con el importador inteligente
+            columnas = [col.removesuffix('_id') for col in model_admin.excel_columns]
+    except Exception as e:
+        # Si algo falla, lo dejamos pasar para usar el respaldo de abajo
+        pass
+
+    # 2. Si no se encontró en tu admin_site o no tenía 'excel_columns', usamos el respaldo por defecto
+    if not columnas:
+        columnas = [field.name for field in model._meta.fields if field.name != 'id' and not field.auto_created]
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -436,6 +457,8 @@ def exportar_resumen_excel(request):
             # --- LÓGICA DE GRATIFICACIÓN (TEXTO EN RANGOS IDÉNTICO A TU PANTALLA) ---
             if promedio_total is None or promedio_total == 0.0:
                 gratificacion = "Sin evaluar"
+            elif promedio_auto == 0 or promedio_jefe == 0:
+                gratificacion = "Incompleta"                    
             elif 1.0 <= promedio_total <= 1.5:
                 gratificacion = "0"
             elif 1.6 <= promedio_total <= 1.9:
@@ -501,8 +524,8 @@ def exportar_resumen_excel(request):
     for idx, fila in enumerate(tabla_datos, start=4):
         ws.append([
             fila['colaborador'],
-            round(fila['promedio_auto'], 2) if fila['promedio_auto'] > 0 else "N/A",
-            round(fila['promedio_jefe'], 2) if fila['promedio_jefe'] > 0 else "N/A",
+            round(fila['promedio_auto'], 2) if fila['promedio_auto'] > 0 else 0,
+            round(fila['promedio_jefe'], 2) if fila['promedio_jefe'] > 0 else 0,
             round(fila['promedio_total'], 2),
             fila['gratificacion']
         ])
@@ -926,6 +949,7 @@ def exportar_competencias_excel(request):
     wb.save(response)
     return response
 
+# 🚨 QUITAMOS el @login_required de aquí arriba porque esta vista es libre para que el usuario se loguee
 def acceso_magico_view(request, token_uuid):
     token = get_object_or_404(TokenAccesoEvaluacion, id_token=token_uuid)
     
@@ -942,8 +966,8 @@ def acceso_magico_view(request, token_uuid):
             # token.utilizado = True
             # token.save()
             
-            #messages.success(request, f"¡Bienvenido {token.empleado.nombre_largo}! Acceso concedido.")
             return redirect('panel_evaluacion') # 👈 Ruta de tu panel de evaluaciones
             
+    # 🌟 Si el token expiró o falló, redirigimos al login del admin personalizado usando su namespace correcto
     messages.error(request, "El enlace de acceso ya no es válido o ha expirado.")
-    return redirect('login') # Si falló, lo manda al login normal
+    return redirect('admin:login')

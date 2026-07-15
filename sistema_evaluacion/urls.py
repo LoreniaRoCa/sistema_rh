@@ -17,8 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from rh import views  # <-- ESTA ES LA LÍNEA MÁGICA QUE FALTABA
-from rh.admin import admin_site
-
+from rh.admin import admin_site, procesar_evaluaciones_loading_view
 urlpatterns = [
     # 1. TRASLADAMOS LA RUTA AL INICIO (Antes de admin.site.urls)
     path('admin/descargar-plantilla/<str:model_name>/', views.descargar_plantilla_excel, name='descargar_plantilla'),
@@ -27,7 +26,9 @@ urlpatterns = [
     path('admin/resumen-evaluaciones/excel/', views.exportar_resumen_excel, name='exportar_resumen_excel'), # ⬅️ Agregada aquí arriba
     path('admin/resumen-evaluaciones/', views.resumen_evaluaciones_view, name='resumen_evaluaciones'),    
     path('admin/panel-evaluacion/', views.panel_evaluacion_view, name='panel_evaluacion'),    
-    
+
+    path('admin/procesar-evaluaciones-loading/<str:session_key>/', admin_site.admin_view(procesar_evaluaciones_loading_view), name='procesar_evaluaciones_loading'),
+
     #Acceso de correo a personal a evaluar
     path('evaluacion/acceso/<uuid:token_uuid>/', views.acceso_magico_view, name='acceso_magico'),
 
