@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/resumen-evaluaciones/excel/', views.exportar_resumen_excel, name='exportar_resumen_excel'), # ⬅️ Agregada aquí arriba
     path('admin/resumen-evaluaciones/', views.resumen_evaluaciones_view, name='resumen_evaluaciones'),    
     path('admin/panel-evaluacion/', views.panel_evaluacion_view, name='panel_evaluacion'),    
+    path('admin/panel-evaluacion/<int:subordinado_id>/', views.panel_evaluacion_view, name='panel_evaluacion_subordinado'),
 
     path('admin/procesar-evaluaciones-loading/<str:session_key>/', admin_site.admin_view(procesar_evaluaciones_loading_view), name='procesar_evaluaciones_loading'),
 
@@ -38,7 +39,6 @@ urlpatterns = [
     
     # 3. Tus rutas de procesamiento de formularios
     path('evaluacion/guardar/', views.guardar_evaluacion_view, name='guardar_evaluacion'),
-    path('panel-evaluacion/<int:subordinado_id>/', views.panel_evaluacion_view, name='panel_evaluacion'),
     path('evaluaciones/asignacion-competencias/', views.asignacion_competencias_view, name='asignacion_competencias'),
 ]
 

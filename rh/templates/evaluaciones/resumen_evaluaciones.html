@@ -96,16 +96,30 @@
                             <tr>
                                 <td class="text-left font-medium text-slate-900 dark:text-white">
                                     {{ fila.empleado_nombre }}
+                                </td>               
+                                <td class="text-center font-semibold text-slate-700 dark:text-neutral-300">
+                                    {% if fila.promedio_auto > 0 and fila.id_empleado %}
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}" 
+                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold"
+                                        title="Consultar Autoevaluación de {{ fila.empleado_nombre }}">
+                                            {{ fila.promedio_auto|punto_decimal }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-slate-400 font-normal">0.0</span>
+                                    {% endif %}
                                 </td>
-                                
-                                <td class="text-center font-medium text-slate-700 dark:text-neutral-300">
-                                    {{ fila.promedio_auto|punto_decimal }}
-                                </td>
-                                
-                                <td class="text-center font-medium text-slate-700 dark:text-neutral-300">
-                                    {{ fila.promedio_jefe|punto_decimal }}
-                                </td>
-                                
+
+                                <td class="text-center font-semibold text-slate-700 dark:text-neutral-300">
+                                    {% if fila.promedio_jefe > 0 and fila.id_empleado %}
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}" 
+                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold"
+                                        title="Consultar Evaluación del Jefe de {{ fila.empleado_nombre }}">
+                                            {{ fila.promedio_jefe|punto_decimal }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-slate-400 font-normal">0.0</span>
+                                    {% endif %}
+                                </td>                               
                                 <td class="text-center font-bold text-emerald-600 dark:text-emerald-400 text-base">
                                     {{ fila.promedio_total|punto_decimal }}
                                 </td>

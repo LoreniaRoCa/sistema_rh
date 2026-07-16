@@ -261,7 +261,8 @@ def resumen_evaluaciones_view(request):
             auto_esp,
             eval_gen,
             eval_esp,
-            evaluacion
+            evaluacion,
+            id_empleado
         FROM vista_resumen_evaluaciones
         ORDER BY nombre_largo ASC;
     """
@@ -275,7 +276,7 @@ def resumen_evaluaciones_view(request):
 
         for row in rows:
             nombre_emp = row[0]
-            
+            id_empleado = row[6]
             # Formateamos valores numéricos controlando los Nulos (None)
             auto_gen = float(row[1]) if row[1] is not None else 0.0
             auto_esp = float(row[2]) if row[2] is not None else 0.0
@@ -331,7 +332,8 @@ def resumen_evaluaciones_view(request):
                 'promedio_auto': promedio_auto,
                 'promedio_jefe': promedio_jefe,
                 'promedio_total': promedio_total,
-                'gratificacion': gratificacion
+                'gratificacion': gratificacion,
+                'id_empleado': id_empleado,
             })
 
     context = {

@@ -332,7 +332,7 @@
                         {% if subordinados %}
                             <div class="space-y-3">
                                 {% for sub in subordinados %}
-                                    <a href="{% url 'panel_evaluacion' sub.empleado.id_empleado %}" 
+                                    <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=sub.empleado.id_empleado %}" 
                                        class="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors group">
                                         <div class="min-w-0 flex-1">
                                             <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-primary-600">
