@@ -93,7 +93,7 @@
                             {% if message.tags != 'error' %}
                                 <div class="flex items-center gap-2">
                                     <a href="{% url 'admin:index' %}" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
-                                        Volver a inicio
+                                        Ir a inicio
                                     </a>
                                     <a href="{% url 'panel_evaluacion' %}" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
                                         Mi panel de evaluación
@@ -305,13 +305,24 @@
                             {% endif %}
 
                             <div class="flex justify-end pt-6 pb-12">
-                                <button type="submit" 
-                                        onclick="if(this.form.checkValidity()) { this.disabled = true; this.innerText = 'Guardando...'; this.form.submit(); }"
-                                        style="background-color: #059669 !important; color: #ffffff !important; opacity: 1 !important; display: inline-flex !important;"
-                                        class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base">
-                                    <span class="material-symbols-outlined text-xl" style="color: #ffffff !important;">save</span>
-                                    Guardar Evaluación
-                                </button>
+                                {% if not modo_consulta %}
+                                    <div class="flex justify-end pt-6 pb-12">
+                                        <button type="submit" 
+                                                onclick="if(this.form.checkValidity()) { this.disabled = true; this.innerText = 'Guardando...'; this.form.submit(); }"
+                                                style="background-color: #059669 !important; color: #ffffff !important; opacity: 1 !important; display: inline-flex !important;"
+                                                class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base">
+                                            <span class="material-symbols-outlined text-xl" style="color: #ffffff !important;">save</span>
+                                            Guardar Evaluación
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    <div class="flex justify-end pt-6 pb-12">
+                                        <div class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl bg-slate-300 text-slate-600 dark:bg-neutral-800 dark:text-neutral-500 text-base">
+                                            <span class="material-symbols-outlined text-xl">visibility</span>
+                                            Modo Consulta (Autoevaluación)
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                         </form>
                     {% else %}
@@ -330,7 +341,7 @@
                             Equipo a Cargo
                         </h3>
                         {% if subordinados %}
-                            <div class="space-y-3">
+                            <div class="card p-4 rounded-xl border border-slate-200 bg-white dark:bg-neutral-900 shadow-sm {% if modo_consulta %}opacity-50 pointer-events-none select-none{% endif %}">
                                 {% for sub in subordinados %}
                                     <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=sub.empleado.id_empleado %}" 
                                        class="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors group">

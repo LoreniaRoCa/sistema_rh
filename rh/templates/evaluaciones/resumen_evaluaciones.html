@@ -85,9 +85,10 @@
                     <thead>
                         <tr class="text-xs font-bold uppercase text-slate-500 dark:text-neutral-400">
                             <th scope="col" class="text-left font-bold text-slate-900 dark:text-white">Colaborador</th>
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white">Departamento</th>
                             <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Autoevaluación</th>
                             <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Evaluación Jefe</th>
-                            <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Nota Final</th>
+                            <!-- <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Nota Final</th>-->
                             <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Gratificación</th>
                         </tr>
                     </thead>
@@ -96,12 +97,14 @@
                             <tr>
                                 <td class="text-left font-medium text-slate-900 dark:text-white">
                                     {{ fila.empleado_nombre }}
+                                </td>   
+                                 <td class="text-left font-medium text-slate-900 dark:text-white">
+                                    {{ fila.departamento }}
                                 </td>               
                                 <td class="text-center font-semibold text-slate-700 dark:text-neutral-300">
                                     {% if fila.promedio_auto > 0 and fila.id_empleado %}
-                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}" 
-                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold"
-                                        title="Consultar Autoevaluación de {{ fila.empleado_nombre }}">
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}?modo_consulta=1&tipo=E" 
+                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold">
                                             {{ fila.promedio_auto|punto_decimal }}
                                         </a>
                                     {% else %}
@@ -111,25 +114,29 @@
 
                                 <td class="text-center font-semibold text-slate-700 dark:text-neutral-300">
                                     {% if fila.promedio_jefe > 0 and fila.id_empleado %}
-                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}" 
-                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold"
-                                        title="Consultar Evaluación del Jefe de {{ fila.empleado_nombre }}">
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}?modo_consulta=1&tipo=J" 
+                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold">
                                             {{ fila.promedio_jefe|punto_decimal }}
                                         </a>
                                     {% else %}
                                         <span class="text-slate-400 font-normal">0.0</span>
                                     {% endif %}
                                 </td>                               
-                                <td class="text-center font-bold text-emerald-600 dark:text-emerald-400 text-base">
+                                <!-- <td class="text-center font-bold text-emerald-600 dark:text-emerald-400 text-base">
                                     {{ fila.promedio_total|punto_decimal }}
-                                </td>
+                                </td>-->
                                 
                                 <td class="text-center">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold 
-                                        {% if fila.gratificacion == '0' or fila.gratificacion == 'Sin evaluar' or fila.gratificacion == 'Fuera de rango' %}
-                                            bg-slate-100 text-slate-600 dark:bg-neutral-800 dark:text-neutral-400
+                                    <span class="inline-flex items-center px-2.5 py-1 text-xs 
+                                        {% if fila.gratificacion == 'Sin evaluar' or fila.gratificacion == 'Incompleta' %}
+                                            text-red-600 dark:text-red-400 font-normal
                                         {% else %}
-                                            bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800
+                                            font-bold rounded-md
+                                            {% if fila.gratificacion == '0' or fila.gratificacion == 'Fuera de rango' %}
+                                                bg-slate-100 text-slate-600 dark:bg-neutral-800 dark:text-neutral-400
+                                            {% else %}
+                                                bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800
+                                            {% endif %}
                                         {% endif %}">
                                         {{ fila.gratificacion }}
                                     </span>

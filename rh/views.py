@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import login
 from django.contrib import messages
 from django.contrib import admin
-
+from django.utils.text import slugify
 # 💡 INCLUSIÓN: Importamos el nuevo modelo de la tabla intermedia
 from .models import (
     Empleado, CompetenciaClasificacion, Competencia, Evaluacion, 
@@ -36,34 +36,60 @@ def panel_evaluacion_view(request, subordinado_id=None):
         context = {'error_mensaje': "No hay evaluaciones configuradas en este momento."}
         return render(request, 'evaluaciones/panel_evaluacion.html', context)
 
+# --- DETECTAR MODO CONSULTA DESDE CONSOLIDADO ---
+    modo_consulta = request.GET.get('modo_consulta') == '1'
+    tipo_forzado = request.GET.get('tipo')  # 'E' (Autoevaluación) o 'J' (Evaluación Jefe)
+
     if subordinado_id:
         empleado_a_evaluar = get_object_or_404(Empleado, id_empleado=subordinado_id)
-        es_autoevaluacion = False
+        # CORRECCIÓN CLAVE: Si es modo consulta de Autoevaluación ('E'), forzamos es_autoevaluacion a True
+        if modo_consulta and tipo_forzado == 'E':
+            es_autoevaluacion = True
+        else:
+            es_autoevaluacion = False
     else:
         empleado_a_evaluar = usuario_logueado
         es_autoevaluacion = True
 
-    tipo_evaluador = 'E' if es_autoevaluacion else 'J'
+    # Determinar qué respuestas cargar basándonos en el origen
+    if modo_consulta and tipo_forzado:
+        tipo_evaluador = tipo_forzado
+    else:
+        tipo_evaluador = 'E' if es_autoevaluacion else 'J'
+
+    # Si está en modo consulta, forzamos evaluacion_cerrada a True para bloquear los controles en el HTML
+    if modo_consulta:
+        evaluacion_cerrada = True
+    else:
+        evaluacion_cerrada = getattr(evaluacion_activa, 'cerrada', False)
 
     # =========================================================================
     # 1. EXTRACCIÓN INTELIGENTE DE COMPETENCIAS
     # =========================================================================
-    competencias_globales_ids = list(Competencia.objects.filter(
-        id_clasificacion__tipo='G'
-    ).values_list('id_competencia', flat=True))
+    # Validamos si el empleado tiene la propiedad se_evalua activada
+    # (Suponiendo que el campo en tu modelo Empleado se llama 'se_evalua')
+    debe_evaluarse = getattr(empleado_a_evaluar, 'se_evalua', True)
 
-    competencias_asignadas_ids = list(EmpleadoCompetenciaAsignada.objects.filter(
-        id_empleado=empleado_a_evaluar
-    ).values_list('id_competencia_id', flat=True))
+    if not debe_evaluarse and es_autoevaluacion:
+        # Si no se evalúa y es su autoevaluación, no cargamos ninguna competencia
+        ids_competencias_validas = []
+    else:
+        # Flujo normal para empleados que sí se evalúan o cuando evalúa a su equipo
+        competencias_globales_ids = list(Competencia.objects.filter(
+            id_clasificacion__tipo='G'
+        ).values_list('id_competencia', flat=True))
 
-    ids_competencias_validas = list(set(competencias_globales_ids + competencias_asignadas_ids))
+        competencias_asignadas_ids = list(EmpleadoCompetenciaAsignada.objects.filter(
+            id_empleado=empleado_a_evaluar
+        ).values_list('id_competencia_id', flat=True))
+
+        ids_competencias_validas = list(set(competencias_globales_ids + competencias_asignadas_ids))
 
     competencias_reales = Competencia.objects.filter(
         id_competencia__in=ids_competencias_validas
     ).select_related('id_clasificacion')
-
     # =========================================================================
-    # 2. RESPUESTAS PREVIAS Y CALIFICACIONES (LLAVES NUMÉRICAS ENTERAS)
+    # 2. RESPUESTAS PREVIAS Y CALIFICACIONES
     # =========================================================================
     respuestas_previos = EvaluacionDet.objects.filter(
         id_evaluacion=evaluacion_activa,
@@ -72,11 +98,9 @@ def panel_evaluacion_view(request, subordinado_id=None):
     )
     ya_contestado = respuestas_previos.exists()
     
-    # 💡 CORRECCIÓN DE NOMBRE: notas_guardadas (Con la "r" correspondiente)
     notas_guardadas = {}
     for r in respuestas_previos:
         if r.id_competencia_id is not None:
-            # Guardamos el valor tal cual viene de la base de datos
             notas_guardadas[int(r.id_competencia_id)] = r.calificacion
 
     comentarios_previos = EvaluacionComentario.objects.filter(
@@ -92,7 +116,12 @@ def panel_evaluacion_view(request, subordinado_id=None):
     # SUBORDINADOS ASOCIADOS DIRECTAMENTE
     # =========================================================================
     subordinados_pendientes = []
-    equipo = Empleado.objects.filter(id_jefe_id=usuario_logueado.id_empleado).exclude(id_empleado=usuario_logueado.id_empleado)
+    
+    # Añadimos el filtro 'se_evalua=True' a la consulta inicial
+    equipo = Empleado.objects.filter(
+        id_jefe_id=usuario_logueado.id_empleado,
+        se_evalua=True
+    ).exclude(id_empleado=usuario_logueado.id_empleado)
     
     for miembro in equipo:
         ya_evaluado_por_jefe = EvaluacionDet.objects.filter(
@@ -127,7 +156,6 @@ def panel_evaluacion_view(request, subordinado_id=None):
         clasif_obj = item['clasificacion']
         lista_comps = item['competencia_list']
         
-        # 💡 FILTRADO EN PYTHON: El promedio de la barra superior ignora los valores menores o iguales a 0 (NA)
         valores_calificaciones = [
             notas_guardadas[c.id_competencia] 
             for c in lista_comps if c.id_competencia in notas_guardadas and notas_guardadas[c.id_competencia] > 0
@@ -147,17 +175,18 @@ def panel_evaluacion_view(request, subordinado_id=None):
 
     context = {
         'evaluacion': evaluacion_activa,
-        'evaluacion_cerrada': getattr(evaluacion_activa, 'cerrada', False), 
+        'evaluacion_cerrada': evaluacion_cerrada,  
         'empleado': empleado_a_evaluar,         
         'usuario_logueado': usuario_logueado,   
         'clasificaciones_generales': clasificaciones_generales,
         'clasificaciones_especificas': clasificaciones_especificas,
         'ya_autoevaluado': ya_contestado, 
-        'notas_guardadas': notas_guardadas, # 💡 Entregamos la variable con el nombre correcto
+        'notas_guardadas': notas_guardadas,
         'comentario_g': comentario_g,
         'comentario_e': comentario_e,
         'subordinados': subordinados_pendientes,
         'es_autoevaluacion': es_autoevaluacion,
+        'modo_consulta': modo_consulta,  # <--- NUEVA BANDERA ENVIADA AL HTML
     }
     return render(request, 'evaluaciones/panel_evaluacion.html', context)
 
@@ -262,8 +291,9 @@ def resumen_evaluaciones_view(request):
             eval_gen,
             eval_esp,
             evaluacion,
-            id_empleado
-        FROM vista_resumen_evaluaciones
+            id_empleado,
+            Departamento
+        FROM rh_vista_resumen_evaluaciones
         ORDER BY nombre_largo ASC;
     """
 
@@ -277,6 +307,7 @@ def resumen_evaluaciones_view(request):
         for row in rows:
             nombre_emp = row[0]
             id_empleado = row[6]
+            departamento = row[7]
             # Formateamos valores numéricos controlando los Nulos (None)
             auto_gen = float(row[1]) if row[1] is not None else 0.0
             auto_esp = float(row[2]) if row[2] is not None else 0.0
@@ -314,15 +345,15 @@ def resumen_evaluaciones_view(request):
                 gratificacion = "Sin evaluar"
             elif promedio_auto == 0 or promedio_jefe == 0:
                 gratificacion = "Incompleta"
-            elif 1.0 <= promedio_total <= 1.5:
+            elif 1.0 <= promedio_jefe <= 1.5:
                 gratificacion = "0"
-            elif 1.6 <= promedio_total <= 1.9:
+            elif 1.6 <= promedio_jefe <= 1.9:
                 gratificacion = "15 días"
-            elif 2.0 <= promedio_total <= 2.9:
+            elif 2.0 <= promedio_jefe <= 2.9:
                 gratificacion = "1 mes"
-            elif 3.0 <= promedio_total <= 3.9:
+            elif 3.0 <= promedio_jefe <= 3.9:
                 gratificacion = "2 meses"
-            elif 4.0 <= promedio_total <= 5.0:
+            elif 4.0 <= promedio_jefe <= 5.0:
                 gratificacion = "3 meses"
             else:
                 gratificacion = "Fuera de rango"
@@ -334,6 +365,7 @@ def resumen_evaluaciones_view(request):
                 'promedio_total': promedio_total,
                 'gratificacion': gratificacion,
                 'id_empleado': id_empleado,
+                'departamento': departamento,
             })
 
     context = {
@@ -406,8 +438,9 @@ def exportar_resumen_excel(request):
             auto_esp,
             eval_gen,
             eval_esp,
-            evaluacion
-        FROM vista_resumen_evaluaciones
+            evaluacion,
+            departamento
+        FROM rh_vista_resumen_evaluaciones
         ORDER BY nombre_largo ASC;
     """
 
@@ -420,7 +453,7 @@ def exportar_resumen_excel(request):
 
         for row in rows:
             nombre_emp = row[0]
-            
+            departamento = row[6]
             # Si el usuario usó la barra de búsqueda en pantalla, filtramos aquí en memoria
             if buscar_texto and buscar_texto not in nombre_emp.lower():
                 continue
@@ -461,15 +494,15 @@ def exportar_resumen_excel(request):
                 gratificacion = "Sin evaluar"
             elif promedio_auto == 0 or promedio_jefe == 0:
                 gratificacion = "Incompleta"                    
-            elif 1.0 <= promedio_total <= 1.5:
+            elif 1.0 <= promedio_jefe <= 1.5:
                 gratificacion = "0"
-            elif 1.6 <= promedio_total <= 1.9:
+            elif 1.6 <= promedio_jefe <= 1.9:
                 gratificacion = "15 días"
-            elif 2.0 <= promedio_total <= 2.9:
+            elif 2.0 <= promedio_jefe <= 2.9:
                 gratificacion = "1 mes"
-            elif 3.0 <= promedio_total <= 3.9:
+            elif 3.0 <= promedio_jefe <= 3.9:
                 gratificacion = "2 meses"
-            elif 4.0 <= promedio_total <= 5.0:
+            elif 4.0 <= promedio_jefe <= 5.0:
                 gratificacion = "3 meses"
             else:
                 gratificacion = "Fuera de rango"
@@ -480,7 +513,8 @@ def exportar_resumen_excel(request):
                 'promedio_auto': promedio_auto,
                 'promedio_jefe': promedio_jefe,
                 'promedio_total': promedio_total,
-                'gratificacion': gratificacion
+                'gratificacion': gratificacion,
+                'departamento': departamento,
             })
 
     # ==========================================
@@ -510,7 +544,8 @@ def exportar_resumen_excel(request):
     ws.append([]) # Fila 2 en blanco
 
     # Encabezados de Columnas que coinciden con tu tabla HTML
-    headers = ["Colaborador", "Promedio Autoevaluación", "Promedio Evaluación Jefe", "Promedio Total", "Gratificación"]
+    #headers = ["Colaborador", "Promedio Autoevaluación", "Promedio Evaluación Jefe", "Promedio Total", "Gratificación"]
+    headers = ["Colaborador", "Departamento", "Promedio Autoevaluación", "Promedio Evaluación Jefe", "Gratificación"]
     ws.append(headers)
     ws.row_dimensions[3].height = 26
 
@@ -519,16 +554,17 @@ def exportar_resumen_excel(request):
         cell = ws.cell(row=3, column=col_idx)
         cell.font = font_header
         cell.fill = fill_header
-        cell.alignment = Alignment(horizontal="center" if col_idx > 1 else "left", vertical="center")
+        cell.alignment = Alignment(horizontal="center" if col_idx > 2 else "left", vertical="center")
         cell.border = border_cell
 
     # Llenar los datos renglón por renglón
     for idx, fila in enumerate(tabla_datos, start=4):
         ws.append([
             fila['colaborador'],
+            fila['departamento'],
             round(fila['promedio_auto'], 2) if fila['promedio_auto'] > 0 else 0,
             round(fila['promedio_jefe'], 2) if fila['promedio_jefe'] > 0 else 0,
-            round(fila['promedio_total'], 2),
+            #round(fila['promedio_total'], 2),
             fila['gratificacion']
         ])
         
@@ -545,7 +581,7 @@ def exportar_resumen_excel(request):
                 cell.fill = fill_cebra
             
             # Alineación numérica o de texto
-            if col_idx == 1:
+            if col_idx < 3:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="center", vertical="center")
@@ -612,7 +648,7 @@ def exportar_detalle_competencias_excel(request):
                 competencia,
                 evaluacion,
                 autoevaluacion
-            FROM vista_evaluaciones
+            FROM rh_vista_evaluaciones
             WHERE id_evaluacion = %s
             ORDER BY nombre_largo ASC, clasificacion ASC, competencia ASC;
         """
@@ -759,10 +795,10 @@ def asignacion_competencias_view(request):
     listado_clasificaciones = []
     
     with connection.cursor() as cursor:
-        cursor.execute("SELECT DISTINCT departamento FROM vista_empleado_competencias WHERE departamento IS NOT NULL ORDER BY departamento;")
+        cursor.execute("SELECT DISTINCT departamento FROM rh_vista_empleado_competencias WHERE departamento IS NOT NULL ORDER BY departamento;")
         listado_departamentos = [r[0] for r in cursor.fetchall()]
         
-        cursor.execute("SELECT DISTINCT clasificacion FROM vista_empleado_competencias WHERE clasificacion IS NOT NULL ORDER BY clasificacion;")
+        cursor.execute("SELECT DISTINCT clasificacion FROM rh_vista_empleado_competencias WHERE clasificacion IS NOT NULL ORDER BY clasificacion;")
         listado_clasificaciones = [r[0] for r in cursor.fetchall()]
 
     # 3. Construcción del Query Principal Dinámico con filtros WHERE
@@ -773,7 +809,7 @@ def asignacion_competencias_view(request):
             departamento,
             clasificacion,
             competencia
-        FROM vista_empleado_competencias
+        FROM rh_vista_empleado_competencias
         WHERE 1=1
     """
     params = []
@@ -840,7 +876,7 @@ def exportar_competencias_excel(request):
             departamento,
             clasificacion,
             competencia
-        FROM vista_empleado_competencias
+        FROM rh_vista_empleado_competencias
         WHERE 1=1
     """
     params = []
@@ -973,3 +1009,92 @@ def acceso_magico_view(request, token_uuid):
     # 🌟 Si el token expiró o falló, redirigimos al login del admin personalizado usando su namespace correcto
     messages.error(request, "El enlace de acceso ya no es válido o ha expirado.")
     return redirect('admin:login')
+
+@login_required
+def exportar_catalogo_excel(request, model_name):
+    try:
+        model = apps.get_model('rh', model_name)
+    except LookupError:
+        return HttpResponse("Modelo no encontrado", status=404)
+
+    # 1. Obtener las columnas del ModelAdmin correspondiente
+    columnas = []
+    try:
+        from rh.admin import admin_site
+        model_admin = admin_site._registry.get(model)
+        if model_admin and hasattr(model_admin, 'excel_columns') and model_admin.excel_columns:
+            columnas = model_admin.excel_columns
+    except Exception:
+        pass
+
+    if not columnas:
+        columnas = [field.name for field in model._meta.fields if field.name != 'id' and not field.auto_created]
+
+    # 2. Reutilizar el motor de búsqueda del Admin para exportar SOLO lo filtrado en pantalla
+    queryset = model.objects.all()
+    if model_admin:
+        # Esto replica los filtros de búsqueda 'q' que introduce el usuario en la barra superior
+        search_term = request.GET.get('q', '').strip()
+        if search_term and model_admin.search_fields:
+            from django.db.models import Q
+            orm_lookups = [f"{search_field}__icontains" for search_field in model_admin.search_fields]
+            or_queries = [Q(**{lookup: search_term}) for lookup in or_lookups]
+            query = or_queries.pop()
+            for item in or_queries:
+                query |= item
+            queryset = queryset.filter(query)
+
+    # 3. Construcción del Excel con Openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = model._meta.verbose_name_plural[:30]
+    ws.views.sheetView[0].showGridLines = True
+
+    # Estilos Formales
+    font_header = Font(name='Arial', size=11, bold=True, color='FFFFFF')
+    fill_header = PatternFill(start_color='1F497D', end_color='1F497D', fill_type='solid') # Azul corporativo
+    fill_cebra = PatternFill(start_color='F2F5F8', end_color='F2F5F8', fill_type='solid')
+    border_thin = Side(border_style="thin", color="D9D9D9")
+    border_cell = Border(left=border_thin, right=border_thin, top=border_thin, bottom=border_thin)
+
+    # Cabeceras (Limpiando los '_id' visualmente)
+    for col_num, column_title in enumerate(columnas, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = column_title.removesuffix('_id').replace('_', ' ').upper()
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = border_cell
+    ws.row_dimensions[1].height = 26
+
+    # Datos
+    for row_idx, obj in enumerate(queryset, start=2):
+        is_even = (row_idx % 2 == 0)
+        for col_idx, col_name in enumerate(columnas, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            
+            # Obtener el valor de manera segura (por ejemplo, propiedades FK o booleanos)
+            val = getattr(obj, col_name, "")
+            if val is True: val = "Sí"
+            elif val is False: val = "No"
+            
+            cell.value = str(val) if val is not None else ""
+            cell.font = Font(name='Arial', size=10)
+            cell.border = border_cell
+            if is_even:
+                cell.fill = fill_cebra
+            cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[row_idx].height = 20
+
+    # Autoajuste de columnas
+    from openpyxl.utils import get_column_letter
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    nombre_archivo = slugify(model._meta.verbose_name_plural)
+    response['Content-Disposition'] = f'attachment; filename=Export_{nombre_archivo}.xlsx'
+    wb.save(response)
+    return response    

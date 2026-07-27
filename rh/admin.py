@@ -18,6 +18,20 @@ from .models import TokenAccesoEvaluacion, Empleado
 import uuid
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q
+from unfold.admin import ModelAdmin
+from unfold.forms import ActionForm
+
+class CustomActionForm(ActionForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'action' in self.fields:
+            self.fields['action'].empty_label = "Seleccionar acción..."
+            # Forzamos las opciones para borrar el "Select action" en inglés de la lista
+            choices = [('', 'Seleccionar acción...')]
+            for option_key, option_label in self.fields['action'].choices:
+                if option_key != '':
+                    choices.append((option_key, option_label))
+            self.fields['action'].choices = choices
 
 class CustomAdminSite(UnfoldAdminSite):
     index_template = "admin/index.html"
@@ -29,7 +43,6 @@ class CustomAdminSite(UnfoldAdminSite):
         extra_context = extra_context or {}
         
         departamentos_dict = {}
-        # Cambiamos jefes de lista a diccionario temporal para agrupar en Python
         jefes_dict = {} 
         
         total_global_empleados = 0
@@ -45,8 +58,8 @@ class CustomAdminSite(UnfoldAdminSite):
                     numempleados, 
                     autoevaluados, 
                     evaluados,
-                    ambas  -- ⬅️ Agregamos la nueva columna aquí (row[5])
-                FROM vista_dashboard_departamentos
+                    ambas  
+                FROM rh_vista_dashboard_departamentos
             """)
             rows = cursor.fetchall()
             
@@ -74,12 +87,18 @@ class CustomAdminSite(UnfoldAdminSite):
                 
                 total_dep = departamentos_dict[dep_nombre]['num_empleados']
                 autos_dep = departamentos_dict[dep_nombre]['auto_evaluados']
-                if total_dep > 0:
-                    departamentos_dict[dep_nombre]['porcentaje'] = round((autos_dep / total_dep) * 100)
+                jefes_dep = departamentos_dict[dep_nombre]['evaluados']
+                
+                # ➡️ CORRECCIÓN AQUÍ: El total de evaluaciones esperadas es el doble del número de empleados (Auto + Jefe)
+                evaluaciones_totales_esperadas = total_dep * 2
+                evaluaciones_realizadas = autos_dep + jefes_dep
+                
+                if evaluaciones_totales_esperadas > 0:
+                    departamentos_dict[dep_nombre]['porcentaje'] = round((evaluaciones_realizadas / evaluaciones_totales_esperadas) * 100)
                 else:
                     departamentos_dict[dep_nombre]['porcentaje'] = 0
 
-                # 2. ACTUALIZACIÓN DE KPIS GLOBALES CON LA COLUMNA CORRECTA
+                # 2. ACTUALIZACIÓN DE KPIS GLOBALES
                 total_global_empleados += num_emp
                 total_auto_global += auto_ev
                 total_jefe_global += jefe_ev
@@ -94,23 +113,20 @@ class CustomAdminSite(UnfoldAdminSite):
                         'jefe_contestadas': 0,
                     }
                 
-                # Vamos acumulando los valores de todos los departamentos que pertenezcan a este jefe
                 jefes_dict[jefe_nombre]['total_empleados'] += num_emp
                 jefes_dict[jefe_nombre]['auto_contestadas'] += auto_ev
                 jefes_dict[jefe_nombre]['jefe_contestadas'] += jefe_ev
 
-        # --- POST-PROCESAMIENTO DE JEFES (Cálculo de porcentajes y colores) ---
+        # --- POST-PROCESAMIENTO DE JAFES ---
         jefes_data = []
         for jefe_nombre, data in jefes_dict.items():
             tot_emp = data['total_empleados']
             auto_cont = data['auto_contestadas']
             jefe_cont = data['jefe_contestadas']
 
-            # Calcular porcentajes sobre los totales agrupados del jefe
             auto_pct = round((auto_cont / tot_emp * 100), 1) if tot_emp > 0 else 0.0
             jefe_pct = round((jefe_cont / tot_emp * 100), 1) if tot_emp > 0 else 0.0
 
-            # Lógica de colores de semáforos para las barras de progreso
             color_auto = "#ef4444" if auto_pct < 40 else ("#f59e0b" if auto_pct < 85 else "#72a651")
             color_jefe = "#ef4444" if jefe_pct < 40 else ("#f59e0b" if jefe_pct < 85 else "#72a651")
 
@@ -125,7 +141,6 @@ class CustomAdminSite(UnfoldAdminSite):
                 'color_jefe': color_jefe,
             })
 
-        # Ordenar alfabéticamente por nombre de jefe
         jefes_data = sorted(jefes_data, key=lambda x: x['nombre'])
 
         # --- CÁLCULO DE KPIS GLOBAL ---
@@ -214,11 +229,16 @@ class ExcelUploadForm(forms.Form):
 # =========================================================================
 #  CLASE BASE PARA IMPORTACIÓN EXCEL (CORREGIDA)
 # =========================================================================
+# =========================================================================
+#  CLASE BASE PARA IMPORTACIÓN EXCEL (MÉTODO EXPORTAR INTEGRADO)
+# =========================================================================
 class ExcelImportAdmin(ModelAdmin):
-    # 🌟 ELIMINAMOS LA LÍNEA: actions = None (Para permitir que Unfold procese las acciones)
     import_template = "admin/importar_excel.html"
     change_list_template = "admin/carga_masiva_change_list.html"
-
+    # 🌟 APLICADO GLOBALMENTE: Todos los catálogos heredarán esto automáticamente
+    action_form = CustomActionForm
+    action_submit_label = "Ejecutar"
+   
     model_class = None       
     pk_field_name = None     
     excel_columns = []       
@@ -226,6 +246,25 @@ class ExcelImportAdmin(ModelAdmin):
     list_per_page = 25
     list_select_related = True
 
+    # 1. MANTENIDO: Generador de URLs para los botones del template personalizado
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        
+        if self.model:
+            app_label = self.model._meta.app_label
+            model_name = self.model._meta.model_name
+            query_string = request.GET.urlencode()
+            
+            # Apunta al get_urls interno del Admin
+            url_exportar = f"/admin/{app_label}/{model_name}/exportar-excel/"
+            if query_string:
+                url_exportar += f"?{query_string}"
+                
+            extra_context['url_exportar_excel'] = url_exportar
+            
+        return super().changelist_view(request, extra_context=extra_context)
+
+    # 2. MANTENIDO: Tus botones de acción rápidos (Editar/Eliminar)
     def acciones_rh(self, obj):
         app_label = obj._meta.app_label
         model_name = obj._meta.model_name
@@ -251,6 +290,7 @@ class ExcelImportAdmin(ModelAdmin):
         )
     acciones_rh.short_description = "Acciones"
 
+    # 3. ACTUALIZADO: Registra tanto tu importador original como el nuevo exportador
     def get_urls(self):
         urls = super().get_urls()
         if not self.model:
@@ -260,14 +300,22 @@ class ExcelImportAdmin(ModelAdmin):
         model_name = self.model._meta.model_name
 
         custom_urls = [
+            # Tu ruta de importación original
             path(
                 'importar-excel/', 
                 self.admin_site.admin_view(self.import_excel_view), 
                 name=f'{app_label}_{model_name}_import_excel'
             ),
+            # La nueva ruta segura de exportación integrada
+            path(
+                'exportar-excel/', 
+                self.admin_site.admin_view(self.exportar_catalogo_view), 
+                name=f'{app_label}_{model_name}_exportar_excel'
+            ),
         ]
         return custom_urls + urls
 
+    # 4. MANTENIDO AL 100%: Tu motor original de procesamiento de carga masiva
     def import_excel_view(self, request):
         if request.method == "POST":
             excel_file = request.FILES.get("excel_file")
@@ -284,21 +332,18 @@ class ExcelImportAdmin(ModelAdmin):
                 wb = openpyxl.load_workbook(excel_file, data_only=True)
                 sheet = wb.active
 
-                # 1. Mapeo inteligente de encabezados
                 header_row = [str(cell.value).strip().lower() if cell.value is not None else "" for cell in sheet[1]]
                 col_map = {name: idx for idx, name in enumerate(header_row) if name}
 
                 success_count = 0
                 error_count = 0
 
-                # 2. Procesamos los datos
                 for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
                     if not any(row):  
                         continue
 
                     data = {}
                     for col_name in self.excel_columns:
-                        # 🌟 CORRECCIÓN AQUÍ: Si el modelo pide 'id_puesto_id' pero el excel tiene 'id_puesto', se adaptan automáticamente
                         posibles_nombres = [
                             col_name.lower(),
                             col_name.lower().removesuffix('_id'),
@@ -317,7 +362,6 @@ class ExcelImportAdmin(ModelAdmin):
                                 val = val.strip()
                             data[col_name] = val
 
-                    # Determinar el ID obligatorio limpiando variaciones de su nombre
                     pk_lower = self.pk_field_name.lower()
                     pk_idx = col_map.get(pk_lower) or col_map.get(pk_lower.removesuffix('_id')) or col_map.get(pk_lower + '_id')
                     pk_value = row[pk_idx] if pk_idx is not None and pk_idx < len(row) else None
@@ -332,11 +376,9 @@ class ExcelImportAdmin(ModelAdmin):
                     else:
                         pk_value = None
 
-                    # 3. Guardar o Actualizar
                     if pk_value:
                         try:
                             defaults_data = {k: v for k, v in data.items() if k != self.pk_field_name}
-                            
                             instance, created = self.model_class.objects.update_or_create(
                                 **{self.pk_field_name: pk_value},
                                 defaults=defaults_data
@@ -353,12 +395,39 @@ class ExcelImportAdmin(ModelAdmin):
                             error_count += 1
                             messages.warning(request, f"Error en fila {row_idx} (Sin ID): {e}")
 
-                messages.success(request, f"Importación completada. Registros procesados exitosamente: {success_count}. Errores: {error_count}")
+                messages.success(request, f"Importación completada. Registros procesados: {success_count}. Errores: {error_count}")
                 
             except Exception as e:
                 messages.error(request, f"Error crítico al procesar el archivo: {e}")
                 
         return redirect(f"/admin/{self.model_class._meta.app_label}/{self.model_class._meta.model_name}/")
+
+    # 5. NUEVO: Agregado al final sin pisar nada. Exporta la data en base a tus columnas mapeadas
+    def exportar_catalogo_view(self, request):
+        if not self.model:
+            raise Http404("Modelo no configurado.")
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = f"Catálogo {self.model._meta.model_name.capitalize()}"
+
+        # Usa las columnas que tú definiste para armar la cabecera exacta de tu plantilla
+        columnas = self.excel_columns if self.excel_columns else [field.name for field in self.model._meta.fields]
+        ws.append(columnas)
+
+        # Rellenamos el reporte
+        queryset = self.model.objects.all()
+        for objeto in queryset:
+            fila = [getattr(objeto, col, "") for col in columnas]
+            fila_limpia = [str(val) if val is not None else "" for val in fila]
+            ws.append(fila_limpia)
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="catalogo_{self.model._meta.model_name}.xlsx"'
+        wb.save(response)
+        return response
 
 
 # ==========================================
@@ -602,41 +671,124 @@ class DepartamentoAdmin(ExcelImportAdmin):
     list_display = ('id_departamento', 'descripcion', 'acciones_rh')
     search_fields = ('descripcion',)
 
-@admin.action(description='Enviar Enlaces de evaluación por Correo')
+# @admin.action(description='Enviar Enlaces de evaluación por Correo')
+# def enviar_enlaces_magicos(modeladmin, request, queryset):
+#     # 1. De los empleados QUE SELECCIONASTE en la lista, filtramos los que tienen correo válido
+#     empleados_seleccionados = queryset.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='')
+    
+#     # 2. Obtenemos los IDs de todos los que son jefes en todo el sistema
+#     jefes_ids = Empleado.objects.exclude(id_jefe__isnull=True).values_list('id_jefe', flat=True).distinct()
+    
+#     # 3. Aplicamos el filtro OR pero únicamente sobre los empleados SELECCIONADOS en el Admin
+#     empleados_a_procesar = empleados_seleccionados.filter(
+#         Q(se_evalua=True) | Q(id_empleado__in=jefes_ids)
+#     )
+    
+#     if not empleados_a_procesar.exists():
+#         modeladmin.message_user(
+#             request, 
+#             "Ninguno de los empleados seleccionados cumple con las condiciones (se_evalua=True o ser Jefe) o no tienen correo válido.", 
+#             messages.WARNING
+#         )
+#         return
+
+#     # 4. Guardamos los IDs de los seleccionados válidos en la sesión
+#     empleados_ids = list(empleados_a_procesar.values_list('id_empleado', flat=True).distinct())
+    
+#     session_key = f"envio_correos_{uuid.uuid4().hex}"
+#     request.session[session_key] = {
+#         'empleados_ids': empleados_ids,
+#         'procesados': 0,
+#         'total': len(empleados_ids),
+#         'app_label': queryset.model._meta.app_label,
+#         'model_name': queryset.model._meta.model_name,
+#     }
+
+#     return redirect(f"/admin/procesar-evaluaciones-loading/{session_key}/")
+
+@admin.action(description='Enviar Enlaces de evaluación por Correo (A todo el personal aplicable)')
 def enviar_enlaces_magicos(modeladmin, request, queryset):
-    # 1. De los empleados QUE SELECCIONASTE en la lista, filtramos los que tienen correo válido
-    empleados_seleccionados = queryset.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='')
-    
-    # 2. Obtenemos los IDs de todos los que son jefes en todo el sistema
+    # 1. Tomamos la evaluación seleccionada en la lista
+    evaluacion_seleccionada = queryset.first()
+    if not evaluacion_seleccionada:
+        modeladmin.message_user(request, "Por favor, selecciona una evaluación.", messages.ERROR)
+        return
+
+    # 2. Obtenemos todos los empleados del sistema con correo electrónico válido
+    empleados_con_correo = Empleado.objects.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='')
+
+    # 3. Identificamos quiénes son jefes (los que aparecen en el campo 'id_jefe' de otros empleados)
     jefes_ids = Empleado.objects.exclude(id_jefe__isnull=True).values_list('id_jefe', flat=True).distinct()
-    
-    # 3. Aplicamos el filtro OR pero únicamente sobre los empleados SELECCIONADOS en el Admin
-    empleados_a_procesar = empleados_seleccionados.filter(
+
+    # 4. Filtramos: que se evalúen O que sean jefes de alguien
+    empleados_a_procesar = empleados_con_correo.filter(
         Q(se_evalua=True) | Q(id_empleado__in=jefes_ids)
     )
-    
+
     if not empleados_a_procesar.exists():
         modeladmin.message_user(
             request, 
-            "Ninguno de los empleados seleccionados cumple con las condiciones (se_evalua=True o ser Jefe) o no tienen correo válido.", 
+            "Ningún empleado cumple con las condiciones (se_evalua=True o ser Jefe) o no tienen correo válido.", 
             messages.WARNING
         )
         return
 
-    # 4. Guardamos los IDs de los seleccionados válidos en la sesión
+    # 5. Guardamos la lista de IDs a procesar en la sesión para la pantalla de carga (Loading)
     empleados_ids = list(empleados_a_procesar.values_list('id_empleado', flat=True).distinct())
     
     session_key = f"envio_correos_{uuid.uuid4().hex}"
     request.session[session_key] = {
         'empleados_ids': empleados_ids,
+        'evaluacion_id': evaluacion_seleccionada.id_evaluacion, # Asociamos la evaluación seleccionada
         'procesados': 0,
         'total': len(empleados_ids),
-        'app_label': queryset.model._meta.app_label,
-        'model_name': queryset.model._meta.model_name,
+        'app_label': 'rh',
+        'model_name': 'evaluacion',
     }
 
     return redirect(f"/admin/procesar-evaluaciones-loading/{session_key}/")
 
+
+# =========================================================================
+# ACCIÓN 2: Para el Modelo "Empleado" (Catálogo de Empleados)
+# =========================================================================
+@admin.action(description='Enviar Enlaces de evaluación a los empleados seleccionados')
+def enviar_enlaces_seleccionados(modeladmin, request, queryset):
+    # 1. Filtramos del queryset seleccionado los que tienen correo electrónico válido
+    empleados_a_procesar = queryset.exclude(CorreoElectronico__isnull=True).exclude(CorreoElectronico='')
+
+    if not empleados_a_procesar.exists():
+        modeladmin.message_user(
+            request, 
+            "Ninguno de los empleados seleccionados tiene un correo electrónico válido registrado.", 
+            messages.WARNING
+        )
+        return
+
+    # 2. Obtenemos la última evaluación configurada en el sistema para asociar los enlaces
+    evaluacion_activa = Evaluacion.objects.filter().last()
+    if not evaluacion_activa:
+        modeladmin.message_user(
+            request, 
+            "No se puede realizar el envío porque no hay ninguna evaluación activa configurada en el sistema.", 
+            messages.ERROR
+        )
+        return
+
+    # 3. Guardamos los IDs de los empleados seleccionados en la sesión
+    empleados_ids = list(empleados_a_procesar.values_list('id_empleado', flat=True).distinct())
+    
+    session_key = f"envio_correos_{uuid.uuid4().hex}"
+    request.session[session_key] = {
+        'empleados_ids': empleados_ids,
+        'evaluacion_id': evaluacion_activa.id_evaluacion, # Asociamos la evaluación activa por defecto
+        'procesados': 0,
+        'total': len(empleados_ids),
+        'app_label': 'rh',
+        'model_name': 'empleado',
+    }
+
+    return redirect(f"/admin/procesar-evaluaciones-loading/{session_key}/")
 
 # 🌟 VISTA INTERMEDIA: PANTALLA DE CARGA DE FRUVER PROCESADA POR AJAX EN TIEMPO REAL
 def procesar_evaluaciones_loading_view(request, session_key):
@@ -783,11 +935,15 @@ class EmpleadoAdmin(CatalogosOrdenadosAdmin, ExcelImportAdmin):
     list_display = ('id_empleado', 'nombre_largo', 'id_puesto', 'id_departamento', 'id_jefe', 'es_jefe_departamento', 'CorreoElectronico', 'estado_empleado', 'fechaalta', 'se_evalua', 'acciones_rh')
     list_filter = ('id_departamento', 'id_puesto', 'es_jefe_departamento', 'CorreoElectronico', 'id_jefe', 'estado_empleado', 'se_evalua', 'id_jefe__nombre_largo')
     search_fields = ('nombre_largo', 'id_puesto__descripcion', 'CorreoElectronico', 'id_jefe__nombre_largo')
+
+# 🌟 ÚNICA DEFINICIÓN:
+    action_form = CustomActionForm
+    action_submit_label = "Ejecutar"
+
     inlines = []  
-    actions = [enviar_enlaces_magicos]
+    actions = [enviar_enlaces_seleccionados]
     # 🌟 AGREGA ESTE MÉTODO JUSTO AQUÍ ADENTRO:
 
-    action_submit_label = "Ejecutar acción"
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
@@ -916,8 +1072,11 @@ class EvaluacionAdmin(ExcelImportAdmin):
     excel_columns = ['descripcion', 'fecha_inicial', 'fecha_final']
     list_display = ('id_evaluacion', 'descripcion', 'fecha_inicial', 'fecha_final', 'acciones_rh', 'cerrada')
     search_fields = ('descripcion',)
+
+    # 🌟 ÚNICA DEFINICIÓN:
+    action_form = CustomActionForm
+    action_submit_label = "Ejecutar"    
     actions = [enviar_enlaces_magicos]
-    action_submit_label = "Ejecutar acción"
 
 #admin.site.register(Evaluacion, EvaluacionAdmin)
 admin_site.register(Evaluacion, EvaluacionAdmin)

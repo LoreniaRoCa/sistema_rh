@@ -28,7 +28,7 @@ class Competencia(models.Model):
 
     class Meta:
         managed = True
-        db_table = 'competencia'
+        db_table = 'rh_competencia'
         verbose_name = "Competencia"
         verbose_name_plural = "Competencias"
 
@@ -57,7 +57,7 @@ class CompetenciaClasificacion(models.Model):
 
     class Meta:
         managed = True
-        db_table = 'competencia_clasificacion'
+        db_table = 'rh_competencia_clasificacion'
         verbose_name = "Competencia clasificación"          
         verbose_name_plural = "Competencia Clasificaciones"   
 
@@ -67,7 +67,7 @@ class Departamento(models.Model):
 
     class Meta:
         managed = True
-        db_table = 'departamento'
+        db_table = 'rh_departamento'
 
     def __str__(self):
         return self.descripcion
@@ -144,7 +144,7 @@ class Empleado(models.Model):
     )    
     class Meta:
         managed = True
-        db_table = 'empleado'
+        db_table = 'rh_empleado'
 
     def __str__(self):
         return self.nombre_largo
@@ -158,7 +158,7 @@ class Evaluacion(models.Model):
     cerrada = models.BooleanField(default=False, verbose_name="¿Evaluación Cerrada?")
     class Meta:
         managed = True
-        db_table = 'evaluacion'
+        db_table = 'rh_evaluacion'
         # LOS CAMBIOS CLAVE:
         verbose_name = "Evaluación"          # Cómo se dice en singular
         verbose_name_plural = "Evaluaciones" # Cómo se mostrará en el menú de la izquierda
@@ -187,7 +187,7 @@ class EvaluacionDet(models.Model):
 
     class Meta:
         managed = True
-        db_table = 'evaluacion_det'
+        db_table = 'rh_evaluacion_det'
 
 
 class Puesto(models.Model):
@@ -196,7 +196,7 @@ class Puesto(models.Model):
 
     class Meta:
         managed = True
-        db_table = 'puesto'
+        db_table = 'rh_puesto'
 
     # ADICIONA ESTA FUNCIÓN AL FINAL DE LA CLASE PUESTO
     def __str__(self):
@@ -220,6 +220,7 @@ class EvaluacionComentario(models.Model):
     areas_oportunidad = models.TextField(blank=True, null=True)
 
     class Meta:
+        db_table = 'rh_evaluacioncomentario'
         # Esto evita duplicados: solo un registro por evaluación, empleado, bloque y rol
         unique_together = ('id_evaluacion', 'id_empleado', 'tipo_bloque', 'tipo_evaluador')
 
@@ -234,6 +235,7 @@ class ClasificacionPorPuesto(models.Model):
         verbose_name = "Clasificación por Puesto"
         verbose_name_plural = "Matriz: Clasificaciones por Puesto"
         unique_together = ('id_puesto', 'id_clasificacion') # Evita duplicados
+        db_table = 'rh_clasificacionporpuesto'
 
 # Tabla para asignar Clasificaciones o Competencias extra directas a un Empleado específico
 class ClasificacionPorEmpleado(models.Model):
@@ -254,6 +256,7 @@ class ClasificacionPorEmpleado(models.Model):
         verbose_name = "Clasificación Especial por Empleado"
         verbose_name_plural = "Excepciones: Clasificaciones por Empleado"
         unique_together = ('id_empleado', 'id_clasificacion')
+        db_table = 'rh_clasificacionporempleado'
 
 class EmpleadoCompetenciaAsignada(models.Model):
     """
@@ -265,9 +268,10 @@ class EmpleadoCompetenciaAsignada(models.Model):
 
     class Meta:
         verbose_name = "Competencia Asignada a Empleado"
-        verbose_name = "Competencias Asignadas"
+        verbose_name_plural = "Competencias Asignadas"
         # Evita que palomeen dos veces la misma competencia para el mismo empleado
         unique_together = ('id_empleado', 'id_competencia') 
+        db_table = 'rh_empleadocompetenciaasignada'
 
     def __str__(self):
         return f"{self.id_empleado.nombre_largo} -> {self.id_competencia.nombre}"        
@@ -277,6 +281,8 @@ class TokenAccesoEvaluacion(models.Model):
     empleado = models.ForeignKey('Empleado', on_delete=models.CASCADE)
     creado_en = models.DateTimeField(auto_now_add=True)
     utilizado = models.BooleanField(default=False)
+    class Meta:
+        db_table = 'rh_tokenaccesoevaluacion'
 
     def es_valido(self):
         # El enlace expira a los 5 días y no debe haber sido usado antes

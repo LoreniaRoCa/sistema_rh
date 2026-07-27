@@ -19,7 +19,6 @@ from django.urls import path
 from rh import views  # <-- ESTA ES LA LÍNEA MÁGICA QUE FALTABA
 from rh.admin import admin_site, procesar_evaluaciones_loading_view
 urlpatterns = [
-    # 1. TRASLADAMOS LA RUTA AL INICIO (Antes de admin.site.urls)
     path('admin/descargar-plantilla/<str:model_name>/', views.descargar_plantilla_excel, name='descargar_plantilla'),
     path('evaluaciones/asignacion-competencias/exportar/', views.exportar_competencias_excel, name='exportar_competencias_excel'),
     path('admin/resumen-evaluaciones/excel-detalle/', views.exportar_detalle_competencias_excel, name='exportar_detalle_competencias_excel'),    

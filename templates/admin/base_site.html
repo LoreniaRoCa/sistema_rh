@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+    (function() {
+        function traducirUnfold() {
+            // 1. Traducir el botón "Run" -> "Ejecutar"
+            document.querySelectorAll("button, input[type='submit'], [type='button']").forEach(function (btn) {
+                if (btn.innerText.trim() === "Run" || btn.value === "Run") {
+                    btn.innerText = "Ejecutar";
+                    btn.value = "Ejecutar";
+                }
+            });
+
+            // 2. Traducir "Select action" -> "Seleccionar acción..."
+            document.querySelectorAll("option").forEach(function (opt) {
+                if (opt.innerText.trim() === "Select action") {
+                    opt.innerText = "Seleccionar acción...";
+                }
+            });
+
+            // 3. Traducir "Type to search" / "Type to filter" -> "Buscar..."
+            document.querySelectorAll("input[placeholder]").forEach(function (input) {
+                if (input.placeholder && input.placeholder.toLowerCase().includes("type to")) {
+                    input.placeholder = "Buscar...";
+                }
+            });
+        }
+
+        // Ejecutar inmediatamente al cargar y en mutaciones del DOM
+        document.addEventListener("DOMContentLoaded", function () {
+            traducirUnfold();
+            
+            const observer = new MutationObserver(function () {
+                traducirUnfold();
+            });
+
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    })();
+</script>
+{% endblock %}

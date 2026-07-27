@@ -11,7 +11,7 @@ No necesitas tocar más tu `admin.py`, la lógica de backend ya quedó perfecta.
 ```html
 {% extends "admin/base_site.html" %}
 {% block content %}
-<div style="padding: 35px; background: white; border-radius: 12px; max-w: 600px; margin: 20px auto; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+<div style="padding: 35px; background: white; border-radius: 12px;  margin: 20px auto; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
     <h2 style="margin-top: 0; color: #1e293b; font-size: 1.25rem; font-weight: 600; margin-bottom: 8px;">
         {{ title }}
     </h2>
@@ -29,14 +29,21 @@ No necesitas tocar más tu `admin.py`, la lógica de backend ya quedó perfecta.
             {{ form.excel_file }}
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 15px; border-top: 1px solid #f1f5f9; pt: 20px;">
-            <a href="../" style="color: #64748b; text-decoration: none; font-size: 0.9rem; font-weight: 500; hover:color: #334155;">
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 15px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+
+            <a href="../"
+            style="color:#64748b; text-decoration:none; font-size:0.9rem; font-weight:500;"
+            onmouseover="this.style.color='#334155'"
+            onmouseout="this.style.color='#64748b'">
                 Cancelar
             </a>
-            <input type="submit" value="Iniciar Carga Masiva" 
-                   style="background-color: #10b981; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-weight: 500; font-size: 0.9rem; cursor: pointer; transition: background 0.2s;"
-                   onmouseover="this.style.backgroundColor='#059669'" 
-                   onmouseout="this.style.backgroundColor='#10b981'">
+
+            <input type="submit"
+                value="Iniciar Carga Masiva"
+                style="background-color:#10b981; color:white; padding:10px 20px; border:none; border-radius:6px; font-weight:500; font-size:0.9rem; cursor:pointer; transition:background 0.2s;"
+                onmouseover="this.style.backgroundColor='#059669'"
+                onmouseout="this.style.backgroundColor='#10b981'">
+
         </div>
     </form>
 </div>
