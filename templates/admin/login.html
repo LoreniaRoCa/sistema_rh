@@ -41,7 +41,7 @@
         content: "" !important;
         position: absolute !important;
         top: 0; left: 0; right: 0; bottom: 0;
-        /* RUTA DE TU LOGO: Cambia esta URL si tu archivo tiene otro nombre o ruta */
+        /* RUTA DE TU LOGO */
         background-image: url("{% static 'img/logo.png' %}") !important;
         background-repeat: no-repeat !important;
         background-position: center !important;
@@ -135,6 +135,7 @@
         // 1. Traducir "Return to site"
         const returnLink = document.querySelector("a[href='/']");
         if (returnLink) {
+            returnLink.setAttribute("href", "/admin/");
             returnLink.innerHTML = `
                 <span class="inline-flex items-center text-sm font-medium text-[#5b893f]">
                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px!important;height:16px!important;color:#5b893f!important;">
@@ -148,6 +149,9 @@
         // 2. CREAR LA TARJETA CONTENEDORA FIJA
         const form = document.querySelector("form");
         if (form) {
+            // 🌟 ASEGURAR QUE EL FORMULARIO SIEMPRE APUNTE A /admin/login/
+            form.setAttribute("action", "/admin/login/");
+
             const mainContainer = form.closest("main") || form.parentElement;
 
             if (mainContainer) {
