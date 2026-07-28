@@ -16,15 +16,24 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-# EMAIL
+# EMAIL LOCAL
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
+# EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' 
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+#EMAIL NUBE
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_PORT = 465                 # 👈 CAMBIAR A 465
+EMAIL_USE_TLS = False            # 👈 CAMBIAR A False
+EMAIL_USE_SSL = True             # 👈 AGREGAR ESTA LÍNEA (SSL)
 EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
 EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
 # Application definition
 
 INSTALLED_APPS = [
