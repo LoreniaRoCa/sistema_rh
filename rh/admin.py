@@ -822,7 +822,7 @@ def procesar_evaluaciones_loading_view(request, session_key):
                 
                 send_mail(
                     asunto, mensaje, 'l.rodriguez@fruver.com.mx',
-                    [empleado.CorreoElectronico], fail_silently=True
+                    [empleado.CorreoElectronico], fail_silently=False
                 )
                 contador_local += 1
             except Exception:
