@@ -28,12 +28,13 @@ ALLOWED_HOSTS = ['*']
 #EMAIL NUBE
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 465                 # 👈 CAMBIAR A 465
-EMAIL_USE_TLS = False            # 👈 CAMBIAR A False
-EMAIL_USE_SSL = True             # 👈 AGREGAR ESTA LÍNEA (SSL)
+EMAIL_PORT = 465                 # 🌟 Cambiar 587 por 465
+EMAIL_USE_TLS = False            # 🌟 Cambiar a False
+EMAIL_USE_SSL = True             # 🌟 Agregar SSL como True
 EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
 EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_TIMEOUT = 10
 # Application definition
 
 INSTALLED_APPS = [
