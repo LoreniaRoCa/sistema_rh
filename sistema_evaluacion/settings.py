@@ -43,13 +43,10 @@ ALLOWED_HOSTS = ['*']
 # EMAIL_TIMEOUT = 10
 
 #EMAIL PARA RENDER
-
-
-
 MAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # Usamos la IP/Host optimizado IPv4 de Gmail para evitar el error de red en Render
-EMAIL_HOST = 'smtp-relay.gmail.com' # o 'smtp.gmail.com'
+EMAIL_HOST = '142.250.115.108' # o 'smtp.gmail.com'
 EMAIL_PORT = 587                    # TLS utiliza el puerto 587 en IPv4
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False

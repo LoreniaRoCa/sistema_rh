@@ -1113,4 +1113,4 @@ def probar_correo_view(request):
         )
         return HttpResponse(f"<h1>✅ Correo enviado con éxito. Resultado SMTP: {resultado}</h1>")
     except Exception as e:
-        return HttpResponse(f"<h1>❌ Error al enviar correo 2:</h1><pre>{str(e)}</pre>")    
+        return HttpResponse(f"<h1>❌ Error al enviar correo 3:</h1><pre>{str(e)}</pre>")    
