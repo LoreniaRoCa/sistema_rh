@@ -2,8 +2,13 @@
 Django settings for sistema_evaluacion project.
 """
 
+
 from pathlib import Path
 from django.urls import reverse_lazy
+
+import socket
+# Forzar a socket a resolver únicamente en direcciones IPv4
+socket.has_ipv6 = False
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,15 +31,33 @@ ALLOWED_HOSTS = ['*']
 # DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 #EMAIL NUBE
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 465                 # 🌟 Cambiar 587 por 465
-EMAIL_USE_TLS = False            # 🌟 Cambiar a False
-EMAIL_USE_SSL = True             # 🌟 Agregar SSL como True
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 465                 # 🌟 Cambiar 587 por 465
+# EMAIL_USE_TLS = False            # 🌟 Cambiar a False
+# EMAIL_USE_SSL = True             # 🌟 Agregar SSL como True
+# EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
+# EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' 
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# DEFAULT_FROM_EMAIL = 'l.rodriguez@fruver.com.mx'  # 👈 Poner directamente la cadena de texto
+# EMAIL_TIMEOUT = 10
+
+#EMAIL PARA RENDER
+
+
+
+MAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# Usamos la IP/Host optimizado IPv4 de Gmail para evitar el error de red en Render
+EMAIL_HOST = 'smtp-relay.gmail.com' # o 'smtp.gmail.com'
+EMAIL_PORT = 587                    # TLS utiliza el puerto 587 en IPv4
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+
 EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
-EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' 
+EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' #os.environ.get('EMAIL_HOST_PASSWORD', '') 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-EMAIL_TIMEOUT = 10
+EMAIL_TIMEOUT = 15
 # Application definition
 
 INSTALLED_APPS = [
