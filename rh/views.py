@@ -1098,3 +1098,19 @@ def exportar_catalogo_excel(request, model_name):
     response['Content-Disposition'] = f'attachment; filename=Export_{nombre_archivo}.xlsx'
     wb.save(response)
     return response    
+
+def probar_correo_view(request):
+    try:
+        # Reemplaza 'tu_correo_personal@gmail.com' por un correo de prueba donde quieras recibirlo
+        destinatario = 'loreniarcy@gmail.com' 
+        
+        resultado = send_mail(
+            subject='Prueba de Correo desde Render',
+            message='¡Hola! Si ves este mensaje, la configuración de correo en Render funciona correctamente.',
+            from_email='l.rodriguez@fruver.com.mx',
+            recipient_list=[destinatario],
+            fail_silently=False  # 👈 Para que nos muestre si hay algún error
+        )
+        return HttpResponse(f"<h1>✅ Correo enviado con éxito. Resultado SMTP: {resultado}</h1>")
+    except Exception as e:
+        return HttpResponse(f"<h1>❌ Error al enviar correo:</h1><pre>{str(e)}</pre>")    
