@@ -6,10 +6,6 @@ Django settings for sistema_evaluacion project.
 from pathlib import Path
 from django.urls import reverse_lazy
 
-import socket
-# Forzar a socket a resolver únicamente en direcciones IPv4
-socket.has_ipv6 = False
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -42,15 +38,17 @@ ALLOWED_HOSTS = ['*']
 # DEFAULT_FROM_EMAIL = 'l.rodriguez@fruver.com.mx'  # 👈 Poner directamente la cadena de texto
 # EMAIL_TIMEOUT = 10
 
-#EMAIL PARA RENDER
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' # 👈 ¡Corregido con "E"!
-EMAIL_HOST = 'smtp.gmail.com'                                 # 👈 Usar el host oficial
-EMAIL_PORT = 465                                              # 👈 Puerto 465 (SSL no bloqueado en Render)
+# ==========================================
+# EMAIL PARA RENDER
+# ==========================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 465
 EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True                                          # 👈 SSL Activado
+EMAIL_USE_SSL = True
 
 EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
-EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx'                   # 👈 Recuerda mover esta contraseña a variables de entorno luego
+EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 EMAIL_TIMEOUT = 10
 # Application definition
