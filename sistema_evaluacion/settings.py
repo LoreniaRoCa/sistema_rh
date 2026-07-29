@@ -43,18 +43,16 @@ ALLOWED_HOSTS = ['*']
 # EMAIL_TIMEOUT = 10
 
 #EMAIL PARA RENDER
-MAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
-# Usamos la IP/Host optimizado IPv4 de Gmail para evitar el error de red en Render
-EMAIL_HOST = '142.250.115.108' # o 'smtp.gmail.com'
-EMAIL_PORT = 587                    # TLS utiliza el puerto 587 en IPv4
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' # 👈 ¡Corregido con "E"!
+EMAIL_HOST = 'smtp.gmail.com'                                 # 👈 Usar el host oficial
+EMAIL_PORT = 465                                              # 👈 Puerto 465 (SSL no bloqueado en Render)
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True                                          # 👈 SSL Activado
 
 EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
-EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx' #os.environ.get('EMAIL_HOST_PASSWORD', '') 
+EMAIL_HOST_PASSWORD = 'pxnc hyms jgrb yipx'                   # 👈 Recuerda mover esta contraseña a variables de entorno luego
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-EMAIL_TIMEOUT = 15
+EMAIL_TIMEOUT = 10
 # Application definition
 
 INSTALLED_APPS = [
