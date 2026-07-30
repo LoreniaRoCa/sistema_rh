@@ -41,19 +41,29 @@ ALLOWED_HOSTS = ['*']
 # ==========================================
 # EMAIL PARA RENDER
 # ==========================================
-# ==========================================
-# CONFIGURACIÓN DE EMAIL PARA RENDER / NUBE
-# ==========================================
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587                  # Cambiar de 465 a 587
-EMAIL_USE_TLS = True              # Habilitar TLS
-EMAIL_USE_SSL = False             # Deshabilitar SSL directo
+# # ==========================================
+# # CONFIGURACIÓN DE EMAIL PARA RENDER / NUBE
+# # ==========================================
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587                  # Cambiar de 465 a 587
+# EMAIL_USE_TLS = True              # Habilitar TLS
+# EMAIL_USE_SSL = False             # Deshabilitar SSL directo
 
-EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
-EMAIL_HOST_PASSWORD = 'vfta uakr wzrc pqoa'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-EMAIL_TIMEOUT = 10
+# EMAIL_HOST_USER = 'l.rodriguez@fruver.com.mx'
+# EMAIL_HOST_PASSWORD = 'vfta uakr wzrc pqoa'
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL_TIMEOUT = 10
+
+#CONFIGURACION CON RESEND
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+
+ANYMAIL = {
+    "RESEND_API_KEY": "re_123456789_tu_api_key_real_aqui",
+}
+
+DEFAULT_FROM_EMAIL = 'onboarding@resend.dev'
+
 
 INSTALLED_APPS = [
     'unfold',  # Primero la estructura base de Unfold
@@ -67,6 +77,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     'rh.apps.RhConfig',
+    'anymail',
 ]
 
 MIDDLEWARE = [
