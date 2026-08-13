@@ -165,7 +165,7 @@ class Evaluacion(models.Model):
 
 
 class EvaluacionDet(models.Model):
-    pk = models.CompositePrimaryKey('id_evaluacion', 'id_competencia', 'id_empleado', 'tipo')
+    #pk = models.CompositePrimaryKey('id_evaluacion', 'id_competencia', 'id_empleado', 'tipo')
     id_evaluacion = models.ForeignKey(Evaluacion, models.DO_NOTHING, db_column='id_evaluacion')
     id_competencia = models.ForeignKey(Competencia, models.DO_NOTHING, db_column='id_competencia')
     id_empleado = models.ForeignKey(Empleado, models.DO_NOTHING, db_column='id_empleado')
@@ -186,6 +186,7 @@ class EvaluacionDet(models.Model):
     )
 
     class Meta:
+        unique_together = (('id_evaluacion', 'id_competencia', 'id_empleado', 'tipo'),)
         managed = True
         db_table = 'rh_evaluacion_det'
 
