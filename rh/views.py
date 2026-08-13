@@ -15,6 +15,7 @@ from django.contrib.auth import login
 from django.contrib import messages
 from django.contrib import admin
 from django.utils.text import slugify
+from django.contrib.auth import logout
 # 💡 INCLUSIÓN: Importamos el nuevo modelo de la tabla intermedia
 from .models import (
     Empleado, CompetenciaClasificacion, Competencia, Evaluacion, 
@@ -22,6 +23,19 @@ from .models import (
 )
 from django.db import connection
 from django.utils import timezone
+
+def cerrar_sesion_view(request):
+    """Cierra la sesión activa del usuario y limpia las cookies."""
+    logout(request)
+    return redirect('/admin/login/')
+
+@login_required
+def redireccionar_segun_rol(request):
+    """Redirige al dashboard admin si es superusuario, o al panel de evaluación si es empleado."""
+    if request.user.is_superuser:
+        return redirect('/admin/')
+    
+    return redirect('/admin/panel-evaluacion/')
 
 @login_required
 def panel_evaluacion_view(request, subordinado_id=None):

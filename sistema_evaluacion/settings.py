@@ -116,6 +116,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 🟢 Tu nuevo middleware de restricción de menú:
+    'rh.middleware.RestringirAccesoAdminMiddleware',
 ]
 
 ROOT_URLCONF = 'sistema_evaluacion.urls'
@@ -202,7 +204,8 @@ STATICFILES_DIRS = [
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Redirecciones tras autenticación
-LOGIN_REDIRECT_URL = '/admin/'  # O la ruta principal de tu sistema
+#LOGIN_REDIRECT_URL = '/admin/'  # O la ruta principal de tu sistema
+LOGIN_REDIRECT_URL = 'redireccionar_login'
 LOGOUT_REDIRECT_URL = '/admin/login/'
 
 # Configuración de Proxies (Requerido para DreamHost, Render, Heroku, etc.)
@@ -237,8 +240,8 @@ UNFOLD = {
     },
     
     "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": True,
+        "show_search": False,
+        "show_all_applications": False, # 🌟 Oculta aplicaciones por defecto
         "navigation": [
             {
                 "title": "Evaluaciones de Desempeño",
@@ -248,23 +251,30 @@ UNFOLD = {
                         "title": "Mi Panel de Evaluación",
                         "link": "/admin/panel-evaluacion/", 
                         "icon": "badge",
+                        # 🟢 Visible para TODOS los usuarios que inicien sesión
+                        "permission": lambda request: request.user.is_authenticated,
                     },
                     {
                         "title": "Consolidado Resultados",
                         "link": "/admin/resumen-evaluaciones/", 
                         "icon": "analytics",
+                        # 🔴 Solo para Administradores
                         "permission": lambda request: request.user.is_superuser,
                     },
                     {
                         "title": "Asignación de Competencias",
                         "link": reverse_lazy("asignacion_competencias"),
                         "icon": "assignment",
+                        # 🔴 Solo para Administradores
+                        "permission": lambda request: request.user.is_superuser,
                     },
                 ]
             },
             {
                 "title": "Catálogos del Sistema",
                 "separator": True,
+                # 🔴 Solo para Administradores (Oculto para empleados normales)
+                "permission": lambda request: request.user.is_superuser,
                 "items": [
                     {
                         "title": "Empleados",
@@ -300,6 +310,9 @@ UNFOLD = {
             },
             {
                 "title": "Seguridad del Sitio",
+                "separator": True,
+                # 🔴 Solo para Administradores
+                "permission": lambda request: request.user.is_superuser,
                 "items": [
                     {
                         "title": "Usuarios",

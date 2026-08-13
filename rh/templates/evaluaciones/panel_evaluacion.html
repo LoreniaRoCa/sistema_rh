@@ -92,9 +92,7 @@
                             
                             {% if message.tags != 'error' %}
                                 <div class="flex items-center gap-2">
-                                    <a href="{% url 'admin:index' %}" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
-                                        Ir a inicio
-                                    </a>
+                                    <!-- Se removió el botón "Ir a inicio" -->
                                     <a href="{% url 'panel_evaluacion' %}" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
                                         Mi panel de evaluación
                                     </a>
@@ -104,24 +102,36 @@
                     {% endfor %}
                 </div>
             {% endif %}
-
             {% if not messages %}
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 <div class="lg:col-span-2 space-y-12">
                     
                     <div class="bg-surface border border-border p-6 rounded-xl shadow-sm mb-6">
-                        <div class="flex items-center gap-4 bg-green-50/70 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-4 rounded-xl w-full">
-                            <div class="p-3 bg-white dark:bg-neutral-900 rounded-xl border border-border shadow-sm">
-                                <span class="material-symbols-outlined text-slate-500 text-2xl">badge</span>
+                        <div class="flex items-center justify-between gap-4 bg-green-50/70 dark:bg-green-950/20 border border-green-100/50 dark:border-green-900/30 p-4 rounded-xl w-full">
+                            
+                            <!-- Información del Empleado (Izquierda) -->
+                            <div class="flex items-center gap-4 min-w-0">
+                                <div class="p-3 bg-white dark:bg-neutral-900 rounded-xl border border-border shadow-sm shrink-0">
+                                    <span class="material-symbols-outlined text-slate-500 text-2xl">badge</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <span class="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider block">
+                                        {% if es_autoevaluacion %}Estas respondiendo tu Autoevaluación{% else %}Evaluando Colaborador{% endif %}
+                                    </span>
+                                    <h2 class="text-xl font-bold text-slate-900 dark:text-white truncate">{{ empleado.nombre_largo }}</h2>
+                                    <p class="text-sm text-slate-500 truncate">{{ empleado.id_puesto.descripcion|default:"Puesto no asignado" }}</p>
+                                </div>
                             </div>
-                            <div>
-                                <span class="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider block">
-                                    {% if es_autoevaluacion %}Estas respondiendo tu Autoevaluación{% else %}Evaluando Colaborador{% endif %}
-                                </span>
-                                <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ empleado.nombre_largo }}</h2>
-                                <p class="text-sm text-slate-500">{{ empleado.id_puesto.descripcion|default:"Puesto no asignado" }}</p>
-                            </div>
+
+                            <!-- 🔴 BOTÓN CERRAR SESIÓN (Alineado a la derecha) -->
+                            <a href="{% url 'cerrar_sesion' %}" 
+                            title="Cerrar sesión actual"
+                            class="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm shrink-0">
+                                <span class="material-symbols-outlined text-base">logout</span>
+                                Cerrar sesión
+                            </a>                            
+
                         </div>
                     </div>
 
@@ -333,43 +343,40 @@
                     {% endif %}
 
                 </div>
+                {% if subordinados %}
+                    <div class="space-y-6">
+                        <div class="bg-surface border border-border p-6 rounded-xl shadow-sm sticky top-4">
+                            <h3 class="font-bold text-slate-900 dark:text-white tracking-tight mb-4 flex items-center gap-2 pb-2 border-b border-border">
+                                <span class="material-symbols-outlined text-slate-500">groups</span>
+                                Equipo a Cargo
+                            </h3>
 
-                <div class="space-y-6">
-                    <div class="bg-surface border border-border p-6 rounded-xl shadow-sm sticky top-4">
-                        <h3 class="font-bold text-slate-900 dark:text-white tracking-tight mb-4 flex items-center gap-2 pb-2 border-b border-border">
-                            <span class="material-symbols-outlined text-slate-500">groups</span>
-                            Equipo a Cargo
-                        </h3>
-                        {% if subordinados %}
-                            <div class="card p-4 rounded-xl border border-slate-200 bg-white dark:bg-neutral-900 shadow-sm {% if modo_consulta %}opacity-50 pointer-events-none select-none{% endif %}">
-                                {% for sub in subordinados %}
-                                    <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=sub.empleado.id_empleado %}" 
-                                       class="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors group">
-                                        <div class="min-w-0 flex-1">
-                                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-primary-600">
-                                                {{ sub.empleado.nombre_largo }}
-                                            </p>
-                                            <p class="text-xs text-slate-400 truncate">
-                                                {{ sub.empleado.id_puesto.descripcion|default:"Puesto no asignado" }}
-                                            </p>
-                                        </div>
-                                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ml-2 shrink-0
-                                            {% if sub.estatus == 'Contestado' %}
-                                                bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400
-                                            {% else %}
-                                                bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400
-                                            {% endif %}">
-                                            {{ sub.estatus }}
-                                        </span>
-                                    </a>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <p class="text-xs text-slate-400 text-center py-4">No tienes personal subordinado directo asignado.</p>
-                        {% endif %}
+                                <div class="card p-4 rounded-xl border border-slate-200 bg-white dark:bg-neutral-900 shadow-sm {% if modo_consulta %}opacity-50 pointer-events-none select-none{% endif %}">
+                                    {% for sub in subordinados %}
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=sub.empleado.id_empleado %}" 
+                                        class="flex items-center justify-between p-3 rounded-lg border border-border bg-background hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors group">
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:text-primary-600">
+                                                    {{ sub.empleado.nombre_largo }}
+                                                </p>
+                                                <p class="text-xs text-slate-400 truncate">
+                                                    {{ sub.empleado.id_puesto.descripcion|default:"Puesto no asignado" }}
+                                                </p>
+                                            </div>
+                                            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ml-2 shrink-0
+                                                {% if sub.estatus == 'Contestado' %}
+                                                    bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400
+                                                {% else %}
+                                                    bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400
+                                                {% endif %}">
+                                                {{ sub.estatus }}
+                                            </span>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                        </div>
                     </div>
-                </div>
-
+                {% endif %}
             </div>
             {% endif %}
 

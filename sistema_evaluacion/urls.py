@@ -22,6 +22,7 @@ from rh.admin import admin_site, procesar_evaluaciones_loading_view
 from rh.views import probar_correo_view
 urlpatterns = [
     path('', RedirectView.as_view(url='admin/', permanent=False)),
+    path('redireccionar-login/', views.redireccionar_segun_rol, name='redireccionar_login'),
     path('probar-correo/', probar_correo_view, name='probar_correo'),
     path('admin/descargar-plantilla/<str:model_name>/', views.descargar_plantilla_excel, name='descargar_plantilla'),
     path('evaluaciones/asignacion-competencias/exportar/', views.exportar_competencias_excel, name='exportar_competencias_excel'),
@@ -42,7 +43,8 @@ urlpatterns = [
     
     # 3. Tus rutas de procesamiento de formularios
     path('evaluacion/guardar/', views.guardar_evaluacion_view, name='guardar_evaluacion'),
-    path('evaluaciones/asignacion-competencias/', views.asignacion_competencias_view, name='asignacion_competencias'),
+    path('admin/evaluaciones/asignacion-competencias/', views.asignacion_competencias_view, name='asignacion_competencias'),
+    path('cerrar-sesion/', views.cerrar_sesion_view, name='cerrar_sesion'),
 ]
 
 
