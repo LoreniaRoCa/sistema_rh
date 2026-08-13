@@ -1,0 +1,240 @@
+{% extends "admin/login.html" %}
+{% load i18n static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    /* 1. Reset para centrar todo en la pantalla */
+    body.login, body {
+        background-color: #ffffff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+    }
+
+    /* Ocultar elementos innecesarios */
+    .login footer, .login .border-t {
+        display: none !important;
+    }
+
+    /* 2. Tarjeta Central (Recuadro) con Logo de Fondo */
+    #custom-login-card {
+        position: relative !important;
+        overflow: hidden !important; /* Mantiene la imagen dentro de los bordes redondeados */
+        background-color: #f4f9f1 !important; /* Verde pistache tenue de fondo */
+        border: 1px solid #e2ebd9 !important;
+        border-radius: 1.5rem !important;
+        padding: 2.5rem 2rem !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08) !important;
+        width: 100% !important;
+        max-width: 400px !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+
+    /* CAPA DEL LOGO DE FONDO (MARCA DE AGUA) */
+    #custom-login-card::before {
+        content: "" !important;
+        position: absolute !important;
+        top: 0; left: 0; right: 0; bottom: 0;
+        /* RUTA DE TU LOGO */
+        background-image: url("{% static 'img/logo.png' %}") !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+        background-size: 65% auto !important; /* Ajusta el tamaño del logo de fondo */
+        opacity: 0.12 !important; /* Controla qué tan tenue es (0.10 = 10% visible) */
+        pointer-events: none !important;
+        z-index: 0 !important;
+    }
+
+    /* Asegurar que el contenido del formulario quede por encima del logo */
+    #custom-login-card > * {
+        position: relative !important;
+        z-index: 1 !important;
+    }
+
+    /* Ocultar etiquetas predeterminadas */
+    .login label {
+        display: none !important;
+    }
+
+    /* 3. Inputs estilizados */
+    .login input[type="text"],
+    .login input[type="password"] {
+        width: 100% !important;
+        height: 48px !important;
+        background-color: rgba(255, 255, 255, 0.9) !important; /* Ligeramente translúcido para integrar el fondo */
+        border: 2px solid #5b893f !important;
+        border-radius: 12px !important;
+        padding-left: 48px !important;
+        padding-right: 16px !important;
+        font-size: 15px !important;
+        color: #2e441f !important;
+        outline: none !important;
+    }
+
+    .login input[type="text"]:focus,
+    .login input[type="password"]:focus {
+        background-color: #ffffff !important;
+        border-color: #72a651 !important;
+        box-shadow: 0 0 0 4px rgba(114, 166, 81, 0.2) !important;
+    }
+
+    .input-group-custom {
+        position: relative;
+        width: 100%;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px !important;
+        height: 22px !important;
+        color: #5b893f !important;
+        fill: none !important;
+        pointer-events: none;
+        z-index: 10;
+    }
+
+    /* 4. Botón ACCESO */
+    .login button[type="submit"],
+    .login input[type="submit"] {
+        width: 100% !important;
+        height: 48px !important;
+        background-color: #5b893f !important;
+        color: #ffffff !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        letter-spacing: 1px !important;
+        border-radius: 12px !important;
+        border: none !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 12px rgba(91, 137, 63, 0.3) !important;
+        text-transform: uppercase !important;
+        margin-top: 0.5rem !important;
+    }
+
+    .login button[type="submit"]:hover,
+    .login input[type="submit"]:hover {
+        background-color: #476b32 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // 1. Traducir "Return to site"
+        const returnLink = document.querySelector("a[href='/']");
+        if (returnLink) {
+            returnLink.setAttribute("href", "/admin/");
+            returnLink.innerHTML = `
+                <span class="inline-flex items-center text-sm font-medium text-[#5b893f]">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px!important;height:16px!important;color:#5b893f!important;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Volver al sitio
+                </span>
+            `;
+        }
+
+        // 2. CREAR LA TARJETA CONTENEDORA FIJA
+        const form = document.querySelector("form");
+        if (form) {
+            // 🌟 ASEGURAR QUE EL FORMULARIO SIEMPRE APUNTE A /admin/login/
+            form.setAttribute("action", "/admin/login/");
+
+            const mainContainer = form.closest("main") || form.parentElement;
+
+            if (mainContainer) {
+                mainContainer.style.background = "transparent";
+                mainContainer.style.boxShadow = "none";
+            }
+
+            const card = document.createElement("div");
+            card.id = "custom-login-card";
+
+            card.innerHTML = `
+                <div class="flex flex-col items-center justify-center mb-6 text-center w-full">
+                    <!-- Avatar SVG Verde Pistache -->
+                    <div class="mb-3 flex items-center justify-center">
+                        <svg class="w-24 h-24 text-[#5b893f]" fill="currentColor" viewBox="0 0 24 24" style="width:96px; height:96px;">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm0 14c-2.03 0-3.8-.85-5.05-2.2.03-1.68 3.37-2.6 5.05-2.6s5.02.92 5.05 2.6C15.8 19.15 14.03 20 12 20z"/>
+                        </svg>
+                    </div>
+                    
+                    <span class="text-xs font-semibold tracking-wider text-[#5b893f] uppercase mb-1">
+                        BIENVENIDO A
+                    </span>
+                    
+                    <h1 class="text-2xl font-bold text-[#2e441f]">
+                        Recursos Humanos
+                    </h1>
+                </div>
+            `;
+
+            form.parentNode.insertBefore(card, form);
+            card.appendChild(form);
+
+            let prev = card.previousElementSibling;
+            while (prev) {
+                const current = prev;
+                prev = prev.previousElementSibling;
+                if (!current.querySelector("a[href='/']")) {
+                    current.remove();
+                }
+            }
+        }
+
+        // 3. Modificar Inputs
+        const usernameInput = document.querySelector("#id_username");
+        const passwordInput = document.querySelector("#id_password");
+        const submitBtn = document.querySelector("button[type='submit'], input[type='submit']");
+
+        if (usernameInput) {
+            usernameInput.placeholder = "Usuario";
+            const parent = usernameInput.parentElement;
+            if (!parent.classList.contains("input-group-custom")) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "input-group-custom";
+                wrapper.innerHTML = `
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                `;
+                parent.insertBefore(wrapper, usernameInput);
+                wrapper.appendChild(usernameInput);
+            }
+        }
+
+        if (passwordInput) {
+            passwordInput.placeholder = "Contraseña";
+            const parent = passwordInput.parentElement;
+            if (!parent.classList.contains("input-group-custom")) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "input-group-custom";
+                wrapper.innerHTML = `
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                `;
+                parent.insertBefore(wrapper, passwordInput);
+                wrapper.appendChild(passwordInput);
+            }
+        }
+
+        if (submitBtn) {
+            submitBtn.value = "ACCESO";
+            submitBtn.innerText = "ACCESO";
+        }
+    });
+</script>
+{% endblock %}

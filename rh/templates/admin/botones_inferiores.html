@@ -1,0 +1,130 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* 1. Ocultamos las pestañas nativas de Jazzmin y mostramos vertical */
+    .nav-tabs { display: none !important; }
+    .tab-content .tab-pane {
+        display: block !important; opacity: 1 !important; visibility: visible !important; position: relative !important;
+    }
+
+    /* 2. Ocultamos visualmente el contenedor de la columna derecha por si queda vacío */
+    .col-md-3.col-sm-12, .col-md-3 {
+        display: none !important; width: 0px !important; flex: 0 0 0% !important; max-width: 0px !important;
+    }
+    .col-md-9.col-sm-12, .col-md-9 {
+        flex: 0 0 100% !important; max-width: 100% !important; width: 100% !important;
+    }
+
+    /* 3. NUESTRO NUEVO COLOR AZUL-GRIS TENUE PERSONALIZADO */
+    .btn-azul-gris-tenue {
+        background-color: #6c7a89 !important; /* Azul grisáceo elegante y suave */
+        border-color: #5c6a79 !important;
+        color: #ffffff !important;
+        padding: .25rem .6rem !important;    /* Tamaño compacto (más pequeño) */
+        font-size: .85rem !important;
+        font-weight: 500 !important;
+        border-radius: .25rem !important;
+        text-transform: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        box-shadow: none !important;
+    }
+    .btn-azul-gris-tenue:hover {
+        background-color: #556270 !important; /* Un tono más oscuro al pasar el mouse */
+        border-color: #495461 !important;
+    }
+
+    /* Botón Eliminar en Rojo suave tirado a la izquierda */
+    .btn-eliminar-suave {
+        background-color: #d9534f !important;
+        border-color: #d43f3a !important;
+        color: #ffffff !important;
+        padding: .25rem .6rem !important;
+        font-size: .85rem !important;
+        border-radius: .25rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .btn-eliminar-suave:hover {
+        background-color: #c9302c !important;
+    }
+
+    /* Contenedor de la barra inferior */
+    .barra-inferior-reubicada {
+        background: #f8f9fa !important;
+        padding: 15px 20px !important;
+        margin-top: 35px !important;
+        margin-bottom: 20px !important;
+        border-radius: 6px !important;
+        border: 1px solid #e2e8f0 !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+        gap: 12px !important;
+        width: 100% !important;
+        clear: both !important;
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Ejecutamos con un retraso de 100ms para asegurar que Jazzmin ya haya acomodado todo
+        setTimeout(function() {
+            var submitRow = document.querySelector(".submit-row");
+            var formulario = document.querySelector("#content-main form");
+            
+            if (submitRow && formulario) {
+                // A) REUBICACIÓN: Arrancamos la barra de la derecha y la sembramos abajo del todo en el formulario
+                formulario.appendChild(submitRow);
+                
+                // Le añadimos nuestra clase de diseño horizontal
+                submitRow.className = "barra-inferior-reubicada";
+
+                // B) CAMBIO DE COLOR Y DISEÑO COMPACTO A LOS BOTONES
+                var inputs = submitRow.querySelectorAll("input, button, a");
+                
+                inputs.forEach(function(elemento) {
+                    // Evitamos alterar elementos ocultos o raros
+                    if (elemento.type === "hidden") return;
+
+                    // 1. Caso Botón Guardar
+                    if (elemento.name === "_save") {
+                        convertirABotonEstilizado(elemento, 'btn-azul-gris-tenue', '<i class="fas fa-save" style="margin-right: 6px;"></i> Guardar');
+                    }
+                    // 2. Caso Guardar y agregar otro
+                    else if (elemento.name === "_addanother") {
+                        convertirABotonEstilizado(elemento, 'btn-azul-gris-tenue', '<i class="fas fa-plus-circle" style="margin-right: 6px;"></i> Guardar y agregar otro');
+                    }
+                    // 3. Caso Guardar y continuar
+                    else if (elemento.name === "_continue") {
+                        convertirABotonEstilizado(elemento, 'btn-azul-gris-tenue', '<i class="fas fa-sync-alt" style="margin-right: 6px;"></i> Guardar y continuar');
+                    }
+                    // 4. Caso Eliminar (Debe ir en rojo suave y a la izquierda)
+                    else if (elemento.classList.contains("deletelink") || elemento.name === "_delete") {
+                        elemento.className = "btn-eliminar-suave";
+                        elemento.style.order = "-1"; // Lo avienta al extremo izquierdo
+                        elemento.style.marginRight = "auto";
+                        if (!elemento.innerHTML.includes("fa-trash-alt")) {
+                            elemento.innerHTML = '<i class="fas fa-trash-alt" style="margin-right: 6px;"></i> Eliminar';
+                        }
+                    }
+                });
+            }
+        }, 100); // 100 milisegundos de espera bastan para burlar a Jazzmin
+    });
+
+    // Función mágica para transformar los rígidos inputs en botones hermosos con iconos y colores correctos
+    function convertirABotonEstilizado(inputOriginal, claseColor, htmlInterno) {
+        var botonNuevo = document.createElement("button");
+        botonNuevo.type = "submit";
+        botonNuevo.name = inputOriginal.name;
+        botonNuevo.className = claseColor;
+        botonNuevo.innerHTML = htmlInterno;
+        inputOriginal.parentNode.replaceChild(botonNuevo, inputOriginal);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,216 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+<div id="content" class="flex flex-col flex-1 w-full min-h-screen min-w-0 px-4 md:px-8 py-6 bg-slate-50 dark:bg-neutral-950 content-inner">
+    
+    <style>
+        .tabla-competencias-cebra {
+            border-collapse: collapse !important;
+            width: 100% !important;
+        }
+        .tabla-competencias-cebra th, 
+        .tabla-competencias-cebra td {
+            border: 1px solid var(--color-border, #e2e8f0) !important;
+            padding: 12px 16px !important;
+        }
+        .tabla-competencias-cebra thead tr {
+            background-color: var(--color-background-neutral, #f8fafc) !important;
+        }
+        .tabla-competencias-cebra tbody tr:nth-child(even) {
+            background-color: var(--color-background-flat, #f1f5f9) !important;
+        }
+        .tabla-competencias-cebra tbody tr:nth-child(odd) {
+            background-color: var(--color-bg-surface, #ffffff) !important;
+        }
+        .tabla-competencias-cebra tbody tr:hover {
+            background-color: rgba(var(--color-primary-rgb, 9, 100, 70), 0.04) !important;
+        }
+
+        /* Inputs emulados al diseño exacto de Unfold */
+        .admin-search-input {
+            height: 38px !important;
+            font-size: 0.875rem !important;
+            border: 1px solid var(--color-border, #cbd5e1) !important;
+            border-radius: 6px 0 0 6px !important;
+            background-color: var(--color-bg-surface, #ffffff) !important;
+            color: var(--color-text, #334155) !important;
+            padding-left: 36px !important;
+        }
+        .admin-filter-select {
+            height: 38px !important;
+            font-size: 0.875rem !important;
+            border: 1px solid var(--color-border, #cbd5e1) !important;
+            border-radius: 6px !important;
+            background-color: var(--color-bg-surface, #ffffff) !important;
+            color: var(--color-text, #334155) !important;
+            padding: 0 12px !important;
+        }
+        .admin-search-input:focus, .admin-filter-select:focus {
+            outline: none !important;
+            border-color: var(--color-primary, #096446) !important;
+        }
+    </style>
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-200 dark:border-neutral-800 pb-5">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Listado de Competencias Asignadas
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-neutral-400 mt-1">
+                Módulo exclusivo de administración para la auditoría de asignaciones.
+            </p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'admin:index' %}" class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 dark:text-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-sm transition-colors duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Regresar al Inicio
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 shadow-sm overflow-hidden mb-6">
+        
+        <div class="p-3 border-b border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 relative">
+            <form method="GET" action="" id="filter-form" class="flex items-center justify-between gap-2 w-full">
+                
+                <div class="flex items-center flex-1 max-w-xl">
+                    <div class="relative w-full flex items-center shadow-sm rounded-lg">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 z-10">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </span>
+                        <input type="text" name="search" value="{{ search_query }}" placeholder="Buscar" class="admin-search-input w-full flex-1">
+                        
+                        <button type="button" id="btn-toggle-filters" class="inline-flex items-center gap-2 px-4 h-[38px] text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 dark:text-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 border-y border-r border-slate-200 dark:border-neutral-700 rounded-r-6px transition-colors whitespace-nowrap {% if filter_dept or filter_clasif %}bg-primary-50 text-primary-700 border-primary-300 dark:bg-primary-950/30{% endif %}">
+                            <svg class="w-4 h-4 text-slate-500 dark:text-neutral-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                            </svg>
+                            <span>Filtros</span>
+                            {% if filter_dept or filter_clasif %}
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                            {% endif %}
+                        </button>
+                    </div>
+
+                    {% if search_query or filter_dept or filter_clasif %}
+                        <a href="{% url 'asignacion_competencias' %}" class="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline ml-3 whitespace-nowrap">
+                            Limpiar filtros
+                        </a>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a href="{% url 'exportar_competencias_excel' %}?search={{ search_query }}&departamento={{ filter_dept }}&clasificacion={{ filter_clasif }}" 
+                    style="background-color: #10b981 !important; color: #ffffff !important;"
+                    class="inline-flex items-center justify-center gap-2 px-4 h-[38px] text-sm font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition-all duration-200 text-white whitespace-nowrap">
+                        <svg style="display: inline-block; width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span>Exportar a Excel</span>
+                    </a>
+                    <button type="submit" class="hidden">Buscar</button>
+                </div>
+
+                <div id="dropdown-filters" class="hidden absolute left-3 top-[56px] w-full max-w-xl bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-lg shadow-xl p-4 z-50 flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1 flex flex-col gap-1">
+                        <label class="text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase">Departamento</label>
+                        <select name="departamento" onchange="this.form.submit()" class="admin-filter-select w-full">
+                            <option value="">All departamentos</option>
+                            {% for dept in listado_departamentos %}
+                                <option value="{{ dept }}" {% if filter_dept == dept %}selected{% endif %}>{{ dept }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex-1 flex flex-col gap-1">
+                        <label class="text-xs font-bold text-slate-500 dark:text-neutral-400 uppercase">Clasificación</label>
+                        <select name="clasificacion" onchange="this.form.submit()" class="admin-filter-select w-full">
+                            <option value="">All clasificaciones</option>
+                            {% for clasif in listado_clasificaciones %}
+                                <option value="{{ clasif }}" {% if filter_clasif == clasif %}selected{% endif %}>{{ clasif }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="p-0">
+            <div class="w-full overflow-x-auto">
+                <table class="tabla-competencias-cebra text-sm text-slate-700 dark:text-neutral-300">
+                    <thead>
+                        <tr class="text-xs font-bold uppercase text-slate-500 dark:text-neutral-400">
+                            <th scope="col" class="text-center w-[8%] font-bold text-slate-900 dark:text-white">ID</th>
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white w-[25%]">Colaborador</th>
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white w-[15%]">Departamento</th>
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white w-[20%]">Clasificación</th>
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white">Competencia / Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in competencias_asignadas %}
+                            <tr>
+                                <td class="text-center font-mono text-xs text-slate-400">
+                                    {{ item.id_empleado }}
+                                </td>
+                                <td class="text-left font-semibold text-slate-900 dark:text-white">
+                                    {{ item.nombre_empleado }}
+                                </td>
+                                <td class="text-left">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 dark:bg-neutral-800 dark:text-neutral-200">
+                                        {{ item.departamento }}
+                                    </span>
+                                </td>
+                                <td class="text-left font-medium text-primary-600 dark:text-primary-400 text-xs uppercase tracking-wider">
+                                    {{ item.clasificacion }}
+                                </td>
+                                <td class="text-left text-sm text-slate-700 dark:text-neutral-300 leading-relaxed">
+                                    {{ item.competencia }}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-sm text-slate-400 italic">
+                                    No se encontraron competencias asignadas.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const btnToggle = document.getElementById("btn-toggle-filters");
+        const dropdownFilters = document.getElementById("dropdown-filters");
+
+        // 1. Abrir / Cerrar el contenedor al dar clic en el botón "Filtros"
+        btnToggle.addEventListener("click", function(e) {
+            e.preventDefault(); // Previene cualquier comportamiento extraño del formulario
+            e.stopPropagation(); // Evita que el evento se propague al documento
+            
+            // Alternamos la clase hidden (si está, la quita; si no está, la pone)
+            dropdownFilters.classList.toggle("hidden");
+        });
+
+        // 2. Evitar que al hacer clic DENTRO del cajón de filtros se cierre solo
+        dropdownFilters.addEventListener("click", function(e) {
+            e.stopPropagation();
+        });
+
+        // 3. Cerrar el cajón automáticamente si el usuario hace clic en cualquier otra parte de la pantalla
+        document.addEventListener("click", function(e) {
+            if (!dropdownFilters.classList.contains("hidden")) {
+                dropdownFilters.classList.add("hidden");
+            }
+        });
+    });
+</script>
+{% endblock %}

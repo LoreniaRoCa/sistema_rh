@@ -1,0 +1,16 @@
+{% load i18n %}
+<h1 style="color: red; font-size: 40px;">¡SÍ ESTÁ ENTRANDO A MI PLANTILLA!</h1>
+<form id="changelist-search" action="" method="get">
+    <div class="relative">
+        <input 
+            type="search" 
+            name="q" 
+            value="{{ search_var }}" 
+            placeholder="Buscar..." 
+            class="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+            <span class="material-symbols-outlined text-sm">search</span>
+        </span>
+    </div>
+</form>

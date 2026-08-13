@@ -1,0 +1,20 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Python compilado
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Archivos de configuración local y claves
+.env
+db.sqlite3
+
+# Editores de código
+.vscode/
+.idea/
+*.suo
+*.ntvs*

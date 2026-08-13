@@ -1,0 +1,158 @@
+{% extends 'admin/base_site.html' %}
+{% load evaluacion_extras %}
+
+{% block content %}
+<div id="content" class="flex flex-col flex-1 w-full min-h-screen min-w-0 px-4 md:px-8 py-6 bg-slate-50 dark:bg-neutral-950 content-inner">
+    
+    <style>
+        .tabla-resumen-cebra {
+            border-collapse: collapse !important;
+            width: 100% !important;
+        }
+        .tabla-resumen-cebra th, 
+        .tabla-resumen-cebra td {
+            border: 1px solid var(--color-border, #e2e8f0) !important;
+            padding: 12px 16px !important;
+        }
+        
+        /* Encabezado con el gris neutral del administrador */
+        .tabla-resumen-cebra thead tr {
+            background-color: var(--color-background-neutral, #f8fafc) !important;
+        }
+
+        /* Efecto Cebra Idéntico */
+        .tabla-resumen-cebra tbody tr:nth-child(even) {
+            background-color: var(--color-background-flat, #f1f5f9) !important;
+        }
+        .tabla-resumen-cebra tbody tr:nth-child(odd) {
+            background-color: var(--color-bg-surface, #ffffff) !important;
+        }
+
+        /* Efecto Hover */
+        .tabla-resumen-cebra tbody tr:hover {
+            background-color: rgba(var(--color-primary-rgb, 9, 100, 70), 0.04) !important;
+        }
+    </style>
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-200 dark:border-neutral-800 pb-5">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Consolidado Control de Evaluaciones
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-neutral-400 mt-1">
+                Periodo Activo: <span class="font-semibold text-primary-600 dark:text-primary-400">{{ nombre_evaluacion }}</span>
+            </p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <a href="{% url 'admin:index' %}" class="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 dark:text-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-sm transition-colors duration-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Regresar al Inicio
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-neutral-900 rounded-xl border border-slate-200 dark:border-neutral-800 shadow-sm overflow-hidden">
+        
+        <div class="p-5 border-b border-slate-200 dark:border-neutral-800 bg-slate-50/50 dark:bg-neutral-900/50 flex flex-row items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600 dark:text-neutral-400 m-0">
+                Resultados por Colaborador
+            </h3>
+            
+            <div class="flex flex-wrap gap-3">
+                <a href="{% url 'exportar_resumen_excel' %}?{{ request.GET.urlencode }}" 
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/>
+                    </svg>
+                    Exportar Resumen
+                </a>
+                <a href="{% url 'exportar_detalle_competencias_excel' %}?{{ request.GET.urlencode }}" 
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"/>
+                    </svg>
+                    Exportar Detalle
+                </a>
+            </div>
+        </div>
+        
+        <div class="p-0">
+            <div class="w-full overflow-x-auto">
+                <table class="tabla-resumen-cebra text-sm text-slate-700 dark:text-neutral-300">
+                    <thead>
+                        <tr class="text-xs font-bold uppercase text-slate-500 dark:text-neutral-400">
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white">Colaborador</th>
+                            <th scope="col" class="text-left font-bold text-slate-900 dark:text-white">Departamento</th>
+                            <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Autoevaluación</th>
+                            <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Evaluación Jefe</th>
+                            <!-- <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Nota Final</th>-->
+                            <th scope="col" class="text-center font-bold text-slate-900 dark:text-white w-[18%]">Gratificación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fila in tabla_datos %}
+                            <tr>
+                                <td class="text-left font-medium text-slate-900 dark:text-white">
+                                    {{ fila.empleado_nombre }}
+                                </td>   
+                                 <td class="text-left font-medium text-slate-900 dark:text-white">
+                                    {{ fila.departamento }}
+                                </td>               
+                                <td class="text-center font-semibold text-slate-700 dark:text-neutral-300">
+                                    {% if fila.promedio_auto > 0 and fila.id_empleado %}
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}?modo_consulta=1&tipo=E" 
+                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold">
+                                            {{ fila.promedio_auto|punto_decimal }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-slate-400 font-normal">0.0</span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-center font-semibold text-slate-700 dark:text-neutral-300">
+                                    {% if fila.promedio_jefe > 0 and fila.id_empleado %}
+                                        <a href="{% url 'panel_evaluacion_subordinado' subordinado_id=fila.id_empleado %}?modo_consulta=1&tipo=J" 
+                                        class="text-emerald-700 hover:text-emerald-500 hover:underline transition-all duration-150 font-bold">
+                                            {{ fila.promedio_jefe|punto_decimal }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-slate-400 font-normal">0.0</span>
+                                    {% endif %}
+                                </td>                               
+                                <!-- <td class="text-center font-bold text-emerald-600 dark:text-emerald-400 text-base">
+                                    {{ fila.promedio_total|punto_decimal }}
+                                </td>-->
+                                
+                                <td class="text-center">
+                                    <span class="inline-flex items-center px-2.5 py-1 text-xs 
+                                        {% if fila.gratificacion == 'Sin evaluar' or fila.gratificacion == 'Incompleta' %}
+                                            text-red-600 dark:text-red-400 font-normal
+                                        {% else %}
+                                            font-bold rounded-md
+                                            {% if fila.gratificacion == '0' or fila.gratificacion == 'Fuera de rango' %}
+                                                bg-slate-100 text-slate-600 dark:bg-neutral-800 dark:text-neutral-400
+                                            {% else %}
+                                                bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800
+                                            {% endif %}
+                                        {% endif %}">
+                                        {{ fila.gratificacion }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-sm text-slate-400 italic">
+                                    No se encontraron registros de evaluaciones en el periodo actual.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

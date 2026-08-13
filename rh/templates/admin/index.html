@@ -1,0 +1,187 @@
+{% extends "unfold/layouts/base.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+<div class="px-4 pt-4 pre-breadcrumbs md:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center text-sm font-normal text-gray-500 dark:text-zinc-400 gap-x-2 gap-y-1">
+        <a href="{% url 'admin:index' %}" class="text-gray-900 dark:text-white font-medium hover:underline">
+            {% trans "Home" %}
+        </a>
+        <span class="text-gray-400 dark:text-zinc-600">/</span>
+        <span class="text-gray-500 dark:text-zinc-400">Panel de Control de Evaluaciones</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="p-4 space-y-8 max-w-7xl mx-auto md:p-6 lg:p-8 text-slate-800 dark:text-neutral-200">
+    <!--
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-zinc-800 pb-4 gap-4">
+        <div>
+            <h1 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+                <span class="material-symbols-outlined text-[#72a651] font-bold">dashboard</span>
+                Panel General de Evaluaciones de Desempeño
+            </h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'resumen_evaluaciones' %}" class="rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-zinc-200 shadow-sm hover:bg-gray-50 transition-colors">
+                Ver Tabla Completa
+            </a>
+            <a href="{% url 'exportar_resumen_excel' %}" class="inline-flex items-center gap-1.5 bg-[#72a651] hover:bg-[#5b893f] text-white font-medium py-1.5 px-3.5 rounded-md text-xs shadow-sm transition-colors">
+                <span class="material-symbols-outlined text-sm">download</span> Exportar Excel
+            </a>
+        </div>
+    </div>
+    -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm">
+        
+        <div class="flex items-center justify-between p-4 border-b md:border-b-0 md:border-r border-gray-100 dark:border-zinc-800/60 last:border-0">
+            <div class="space-y-1">
+                <span class="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Avance General</span>
+                <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{{ global_kpis.general_completadas }}</p>
+                <p class="text-[11px] text-gray-400 dark:text-zinc-500">Con ambas evaluaciones listas</p>
+            </div>
+            <div class="relative flex items-center justify-center w-20 h-20 flex-shrink-0">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke-width="8" stroke="#f1f5f9" class="dark:stroke-zinc-800" fill="none" stroke-dasharray="251.2"/>
+                    <circle class="js-radial-circle" cx="50" cy="50" r="40" stroke-width="8" stroke="#72a651" fill="none"
+                            stroke-linecap="round" stroke-dasharray="251.2"
+                            data-offset="{{ global_kpis.general_offset|floatformat:1 }}"/>
+                </svg>
+                <span class="absolute text-xs font-bold text-gray-800 dark:text-zinc-100">{{ global_kpis.general_porcentaje|floatformat:0 }}%</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between p-4 border-b md:border-b-0 md:border-r border-gray-100 dark:border-zinc-800/60 last:border-0">
+            <div class="space-y-1">
+                <span class="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Autoevaluación</span>
+                <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{{ global_kpis.auto_contestadas }}</p>
+                <p class="text-[11px] text-gray-400 dark:text-zinc-500">Colaboradores que contestaron</p>
+            </div>
+            <div class="relative flex items-center justify-center w-20 h-20 flex-shrink-0">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke-width="8" stroke="#f1f5f9" class="dark:stroke-zinc-800" fill="none" stroke-dasharray="251.2"/>
+                    <circle class="js-radial-circle" cx="50" cy="50" r="40" stroke-width="8" stroke="#72a651" fill="none"
+                            stroke-linecap="round" stroke-dasharray="251.2"
+                            data-offset="{{ global_kpis.auto_offset|floatformat:1 }}"/>
+                </svg>
+                <span class="absolute text-xs font-bold text-gray-800 dark:text-zinc-100">{{ global_kpis.auto_porcentaje|floatformat:0 }}%</span>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between p-4 last:border-0">
+            <div class="space-y-1">
+                <span class="text-xs font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Evaluación Jefes</span>
+                <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{{ global_kpis.jefe_contestadas }}</p>
+                <p class="text-[11px] text-gray-400 dark:text-zinc-500">Revisiones autorizadas</p>
+            </div>
+            <div class="relative flex items-center justify-center w-20 h-20 flex-shrink-0">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke-width="8" stroke="#f1f5f9" class="dark:stroke-zinc-800" fill="none" stroke-dasharray="251.2"/>
+                    <circle class="js-radial-circle" cx="50" cy="50" r="40" stroke-width="8" stroke="#4f46e5" fill="none"
+                            stroke-linecap="round" stroke-dasharray="251.2"
+                            data-offset="{{ global_kpis.jefe_offset|floatformat:1 }}"/>
+                </svg>
+                <span class="absolute text-xs font-bold text-gray-800 dark:text-zinc-100">{{ global_kpis.jefe_porcentaje|floatformat:0 }}%</span>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="my-6 border-b-2 border-red-500/80 rounded-full shadow-sm"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <div class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm space-y-5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Avance por Departamento</h2>
+            
+            <div class="space-y-4">
+                {% for nombre_dep, values in departamentos.items %}
+                <div class="grid grid-cols-12 items-center text-xs gap-x-4">
+                    
+                    <span class="font-bold text-gray-700 dark:text-zinc-300 truncate col-span-4" title="{{ nombre_dep }}">
+                        {{ nombre_dep }}
+                    </span>
+                    
+                    <div style="background-color: #f1f5f9; height: 12px;" class="rounded-full overflow-hidden relative shadow-inner dark:bg-zinc-800 col-span-7">
+                        <div class="js-dep-bar rounded-full h-full transition-all duration-500" 
+                             style="background-color: #72a651; width: 0%;"
+                             data-progress="{{ values.porcentaje }}"></div>
+                    </div>
+
+                    <span class="font-black text-gray-900 dark:text-white text-right col-span-1">
+                        {{ values.porcentaje|floatformat:0 }}%
+                    </span>
+                </div>
+                {% empty %}
+                <div class="text-center py-6">
+                    <p class="text-xs italic text-gray-400">No se encontraron departamentos activos.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm space-y-5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Estatus de Evaluaciones por Jefe</h2>
+            
+            <div class="space-y-4">
+                {% for j in jefes_data %}
+                <div class="grid grid-cols-12 items-center text-xs gap-x-4">
+                    
+                    <span class="font-bold text-gray-900 dark:text-white truncate col-span-5" title="{{ j.nombre }}">
+                        {{ j.nombre }}
+                    </span>
+                    
+                    <div style="background-color: #f1f5f9; height: 12px;" class="rounded-full overflow-hidden relative shadow-inner dark:bg-zinc-800 col-span-6">
+                        <div class="js-jefe-bar rounded-full h-full transition-all duration-500" 
+                            style="background-color: #4f46e5; width: 0%;"
+                            data-progress="{{ j.jefe_pct }}"></div>
+                    </div>
+
+                    <span class="font-black text-indigo-600 dark:text-indigo-400 text-right col-span-1 whitespace-nowrap">
+                        {{ j.jefe_pct|floatformat:0 }}%
+                    </span>
+                </div>
+                {% empty %}
+                <div class="text-center py-6">
+                    <p class="text-xs italic text-gray-400">No se encontraron líderes asignados.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Círculos Radiales Superiores
+        document.querySelectorAll('.js-radial-circle').forEach(function(circle) {
+            var rawOffset = circle.getAttribute('data-offset') || "0";
+            var cleanOffset = parseFloat(rawOffset.replace(',', '.'));
+            if (!isNaN(cleanOffset)) {
+                circle.style.strokeDashoffset = cleanOffset + "px";
+            }
+        });
+
+        // 2. Renderizado para las barras de los Departamentos (Elimina el error del editor)
+        document.querySelectorAll('.js-dep-bar').forEach(function(bar) {
+            var rawPct = bar.getAttribute('data-progress') || "0";
+            var cleanPct = parseFloat(rawPct.replace(',', '.'));
+            if (!isNaN(cleanPct)) {
+                bar.style.width = cleanPct + "%";
+            }
+        });
+
+        // 3. Renderizado para las barras de progreso de los Jefes
+        document.querySelectorAll('.js-jefe-bar').forEach(function(bar) {
+            var rawPct = bar.getAttribute('data-progress') || "0";
+            var cleanPct = parseFloat(rawPct.replace(',', '.'));
+            if (!isNaN(cleanPct)) {
+                bar.style.width = cleanPct + "%";
+            }
+        });
+    });
+</script>
+{% endblock %}
