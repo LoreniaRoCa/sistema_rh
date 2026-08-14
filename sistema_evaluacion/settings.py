@@ -202,6 +202,8 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Obligatorio para que WhiteNoise entregue los archivos estáticos en producción:
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Redirecciones tras autenticación
 #LOGIN_REDIRECT_URL = '/admin/'  # O la ruta principal de tu sistema
@@ -252,21 +254,21 @@ UNFOLD = {
                         "link": "/admin/panel-evaluacion/", 
                         "icon": "badge",
                         # 🟢 Visible para TODOS los usuarios que inicien sesión
-                        "permission": lambda request: request.user.is_authenticated,
+                        #"permission": lambda request: request.user.is_authenticated,
                     },
                     {
                         "title": "Consolidado Resultados",
                         "link": "/admin/resumen-evaluaciones/", 
                         "icon": "analytics",
                         # 🔴 Solo para Administradores
-                        "permission": lambda request: request.user.is_superuser,
+                        #"permission": lambda request: request.user.is_superuser,
                     },
                     {
                         "title": "Asignación de Competencias",
                         "link": reverse_lazy("asignacion_competencias"),
                         "icon": "assignment",
                         # 🔴 Solo para Administradores
-                        "permission": lambda request: request.user.is_superuser,
+                        #"permission": lambda request: request.user.is_superuser,
                     },
                 ]
             },
@@ -274,7 +276,7 @@ UNFOLD = {
                 "title": "Catálogos del Sistema",
                 "separator": True,
                 # 🔴 Solo para Administradores (Oculto para empleados normales)
-                "permission": lambda request: request.user.is_superuser,
+                #"permission": lambda request: request.user.is_superuser,
                 "items": [
                     {
                         "title": "Empleados",
@@ -312,7 +314,7 @@ UNFOLD = {
                 "title": "Seguridad del Sitio",
                 "separator": True,
                 # 🔴 Solo para Administradores
-                "permission": lambda request: request.user.is_superuser,
+                #"permission": lambda request: request.user.is_superuser,
                 "items": [
                     {
                         "title": "Usuarios",
