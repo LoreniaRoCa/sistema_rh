@@ -195,7 +195,7 @@ USE_TZ = True
 USE_L10N = True # Activado para que traduzca componentes de interfaz de paquetes externos
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
