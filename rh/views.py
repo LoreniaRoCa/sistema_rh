@@ -148,7 +148,7 @@ def panel_evaluacion_view(request, subordinado_id=None):
             'empleado': miembro,
             'estatus': 'Contestado' if ya_evaluado_por_jefe else 'Pendiente'
         })
-
+    subordinados_pendientes.sort(key=lambda x: (x['estatus'] != 'Pendiente', x['empleado'].nombre_largo))
     # =========================================================================
     # 3. CONSTRUCCIÓN DE LA ESTRUCTURA PARA EL HTML
     # =========================================================================
