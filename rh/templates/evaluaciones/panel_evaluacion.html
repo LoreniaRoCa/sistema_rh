@@ -108,7 +108,7 @@
                 </div>
             {% endif %}
             {% if not messages %}
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 <div class="lg:col-span-2 space-y-12">
                     
@@ -328,36 +328,37 @@
                                 </div>
                             {% endif %}
 
-                            <div class="flex justify-end pt-6 pb-12">
-                                {% if not modo_consulta %}
-                                    <div class="w-full pt-6 pb-12 mt-8 border-t border-slate-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            {% if not modo_consulta %}
+                                <!-- 🟢 CONTENEDOR PRINCIPAL SIN JUSTIFY-END -->
+                                <div class="max-w-full overflow-hidden pt-6 pb-12 mt-8 border-t border-slate-200 dark:border-neutral-800">
+                                    <div class="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 w-full">
                                         
-                                        <!-- 🔴 Botón Cerrar sesión (Extremo izquierdo, altura idéntica y ancho automático) -->
+                                        <!-- 🔴 Cerrar sesión -->
                                         <a href="{% url 'cerrar_sesion' %}" 
-                                        class="inline-flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/50 rounded-xl transition-all w-auto shrink-0">
+                                           class="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/50 rounded-xl transition-all w-full sm:w-auto">
                                             <span class="material-symbols-outlined text-xl">logout</span>
                                             Cerrar sesión
                                         </a>
 
-                                        <!-- 🟢 Botón Guardar Evaluación (Extremo derecho, intacto) -->
+                                        <!-- 🟢 Guardar Evaluación -->
                                         <button type="submit" 
                                                 onclick="if(this.form.checkValidity()) { this.disabled = true; this.innerText = 'Guardando...'; this.form.submit(); }"
                                                 style="background-color: #059669 !important; color: #ffffff !important; opacity: 1 !important; display: inline-flex !important;"
-                                                class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base justify-center shrink-0">
+                                                class="inline-flex items-center gap-2 font-bold py-3 px-6 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base justify-center w-full sm:w-auto">
                                             <span class="material-symbols-outlined text-xl" style="color: #ffffff !important;">save</span>
                                             Guardar Evaluación
                                         </button>
 
                                     </div>
-                                {% else %}
-                                    <div class="flex justify-end pt-6 pb-12">
-                                        <div class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl bg-slate-300 text-slate-600 dark:bg-neutral-800 dark:text-neutral-500 text-base">
-                                            <span class="material-symbols-outlined text-xl">visibility</span>
-                                            Modo Consulta (Autoevaluación)
-                                        </div>
+                                </div>
+                            {% else %}
+                                <div class="flex justify-end pt-6 pb-12">
+                                    <div class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl bg-slate-300 text-slate-600 dark:bg-neutral-800 dark:text-neutral-500 text-base">
+                                        <span class="material-symbols-outlined text-xl">visibility</span>
+                                        Modo Consulta (Autoevaluación)
                                     </div>
-                                {% endif %}
-                            </div>
+                                </div>
+                            {% endif %}
                         </form>
                     {% else %}
                         <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center dark:bg-amber-900/20 dark:border-amber-900">
