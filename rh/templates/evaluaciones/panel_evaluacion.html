@@ -129,24 +129,24 @@
                             </div>
                         </div>
 
-                        <!-- 🔴 BOTÓN CERRAR SESIÓN (PC: Compacto a la derecha / Móvil: Oculto) -->
+                        <!-- 🔴 BOTÓN CERRAR SESIÓN (PC: Compacto a la derecha / Móvil: Oculto) >
                         <a href="{% url 'cerrar_sesion' %}" 
                         title="Cerrar sesión actual"
                         class="hidden sm:inline-flex ml-auto items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-600 dark:text-slate-300 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950/30 dark:hover:text-red-400 transition-all shadow-sm shrink-0 self-center">
                             <span class="material-symbols-outlined text-base">logout</span>
                             Cerrar sesión
-                        </a>
+                        </a>-->
 
                     </div>
 
-                    <!-- 🔴 BOTÓN CERRAR SESIÓN SECUNDARIO (Solo visible en Celulares: ancho completo) -->
+                    <!-- 🔴 BOTÓN CERRAR SESIÓN SECUNDARIO (Solo visible en Celulares: ancho completo) >
                     <div class="block sm:hidden mt-3 pt-3 border-t border-border/60 text-center">
                         <a href="{% url 'cerrar_sesion' %}" 
                         class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-all shadow-sm">
                             <span class="material-symbols-outlined text-base">logout</span>
                             Cerrar sesión
                         </a>
-                    </div>
+                    </div>-->
                 </div>
 
                     {% if error_mensaje %}
@@ -206,7 +206,7 @@
                                                             <tr class="fila-promedio font-semibold text-slate-700 dark:text-slate-300">
                                                                 <td class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider">Promedio Tabla</td>
                                                                 <td colspan="5" class="p-3 text-center align-middle border-l border-border font-black text-slate-900 dark:text-white text-sm bg-slate-50/50 dark:bg-neutral-900/40">
-                                                                    <span class="promedio-display">0.0</span>
+                                                                    <span class="promedio-display">0.00</span>
                                                                 </td>
                                                             </tr>
                                                         </tbody>
@@ -289,8 +289,8 @@
                                                         {% endfor %}
                                                         <tr class="fila-promedio font-semibold text-slate-700 dark:text-slate-300">
                                                             <td class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider">Promedio Tabla</td>
-                                                            <td colspan="5" class="p-3 text-center align-middle border-l border-border font-black text-slate-900 dark:text-white text-sm bg-slate-50/50 dark:bg-neutral-900/40">
-                                                                <span class="promedio-display">0.0</span>
+                                                            <td colspan="6" class="p-3 text-center align-middle border-l border-border font-black text-slate-900 dark:text-white text-sm bg-slate-50/50 dark:bg-neutral-900/40">
+                                                                <span class="promedio-display">0.00</span>
                                                             </td>
                                                         </tr>
                                                     </tbody>
@@ -330,14 +330,24 @@
 
                             <div class="flex justify-end pt-6 pb-12">
                                 {% if not modo_consulta %}
-                                    <div class="flex justify-end pt-6 pb-12">
+                                    <div class="w-full pt-6 pb-12 mt-8 border-t border-slate-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                        
+                                        <!-- 🔴 Botón Cerrar sesión (Extremo izquierdo, altura idéntica y ancho automático) -->
+                                        <a href="{% url 'cerrar_sesion' %}" 
+                                        class="inline-flex items-center justify-center gap-2 px-6 py-4 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/50 rounded-xl transition-all w-auto shrink-0">
+                                            <span class="material-symbols-outlined text-xl">logout</span>
+                                            Cerrar sesión
+                                        </a>
+
+                                        <!-- 🟢 Botón Guardar Evaluación (Extremo derecho, intacto) -->
                                         <button type="submit" 
                                                 onclick="if(this.form.checkValidity()) { this.disabled = true; this.innerText = 'Guardando...'; this.form.submit(); }"
                                                 style="background-color: #059669 !important; color: #ffffff !important; opacity: 1 !important; display: inline-flex !important;"
-                                                class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base">
+                                                class="inline-flex items-center gap-2 font-bold py-4 px-8 rounded-xl text-white shadow-lg transition-all duration-150 transform hover:-translate-y-0.5 cursor-pointer text-base justify-center shrink-0">
                                             <span class="material-symbols-outlined text-xl" style="color: #ffffff !important;">save</span>
                                             Guardar Evaluación
                                         </button>
+
                                     </div>
                                 {% else %}
                                     <div class="flex justify-end pt-6 pb-12">
@@ -420,7 +430,7 @@
 
             const granPromedioDisplay = document.getElementById(granPromedioId);
             if (granPromedioDisplay) {
-                granPromedioDisplay.innerText = conteo > 0 ? (suma / conteo).toFixed(1) : "0.0";
+                granPromedioDisplay.innerText = conteo > 0 ? (suma / conteo).toFixed(2) : "0.00";
             }
         }
 
@@ -446,7 +456,7 @@
                 // CORRECCIÓN 1: Cambiado de ".promedio-seccion" a ".promedio-display" para coincidir con tu HTML
                 let celdaPromedio = box.querySelector(".promedio-display");
                 if (celdaPromedio) {
-                    celdaPromedio.textContent = promedio > 0 ? promedio.toFixed(1) : "0.0";
+                    celdaPromedio.textContent = promedio > 0 ? promedio.toFixed(2) : "0.00";
                 }
 
                 // CORRECCIÓN 2: Cambiado "universales" por "generales" para coincidir con tus IDs del HTML
