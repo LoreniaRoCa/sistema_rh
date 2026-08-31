@@ -91,16 +91,16 @@
                             </div>
                             
                             {% if message.tags != 'error' %}
-                                <div class="flex items-center gap-2">
-                                    <!-- Se removió el botón "Ir a inicio" -->
-                                    <a href="{% url 'panel_evaluacion' %}" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md shadow-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors">
+                                <div class="flex items-stretch gap-2">
+                                    <!-- Botón 1: Mi panel de evaluación -->
+                                    <a href="{% url 'panel_evaluacion' %}" class="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md shadow-sm border border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50 transition-colors text-center leading-tight">
                                         Mi panel de evaluación
                                     </a>
-                                    <!-- 🟢 Botón 2: Cerrar sesión (Verde e igual dimensiones) -->
-                                    <a href="{% url 'cerrar_sesion' %}" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 h-8 text-xs font-semibold rounded-md shadow-sm border border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50 transition-colors">
-                                        <span class="material-symbols-outlined text-sm">logout</span>
+                                    <!-- Botón 2: Cerrar sesión -->
+                                    <a href="{% url 'cerrar_sesion' %}" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-md shadow-sm border border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50 transition-colors text-center leading-tight">
+                                        <span class="material-symbols-outlined text-sm shrink-0">logout</span>
                                         Cerrar sesión
-                                    </a>                                   
+                                    </a>                                        
                                 </div>
                             {% endif %}
                         </div>
