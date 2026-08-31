@@ -587,12 +587,39 @@ class EmpleadoAdminForm(forms.ModelForm):
         fields = '__all__'
 
         # 🌟 AGREGA ESTA PROPIEDAD AQUÍ ABAJO:
+        # 🌟 AQUÍ ESPECIFICAS EL ANCHO IDÉNTICO PARA TODOS LOS CAMPOS
         widgets = {
+            # 🟢 CAMPOS AL 75% DE SU CONTENEDOR (o w-3/4 con Tailwind)
+            'nombre_largo': forms.TextInput(attrs={
+                'style': 'width: 50% !important;',
+                # O si prefieres Tailwind: 'class': 'w-3/4'
+            }),
+            'CorreoElectronico': forms.EmailInput(attrs={
+                'style': 'width: 50% !important;',
+            }),
+            'id_jefe': forms.Select(attrs={
+                'style': 'width: 50% !important;',
+            }),
+
+            # 🔵 CAMPOS AL 30% DE SU CONTENEDOR (o w-1/3 con Tailwind)
+            'id_departamento': forms.Select(attrs={
+                'style': 'width: 20% !important;',
+                # O si prefieres Tailwind: 'class': 'w-1/3'
+            }),
+            'id_puesto': forms.Select(attrs={
+                'style': 'width: 20% !important;',
+            }),
+            'user': forms.Select(attrs={
+                'style': 'width: 10% !important;',
+            }),
+            'estado_empleado': forms.Select(attrs={
+                'style': 'width: 10% !important;',
+            }),
             'fechaalta': forms.DateInput(
-                format='%Y-%m-%d',  # 🌟 Obliga a Django a enviar el dato en formato AAAA-MM-DD
-                attrs={'type': 'date'}
+                format='%Y-%m-%d',
+                attrs={'type': 'date', 'style': 'width: 10% !important;'}
             ),
-        }    
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
